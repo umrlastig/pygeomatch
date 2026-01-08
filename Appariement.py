@@ -5,12 +5,12 @@ import shapely
 from shapely.geometry import Point, LineString
 import geopandas as gpd
 import pandas as pd
-from Operateurs import intersectionRobuste  
-import shapefile
+# remove to prevent confusion with the function here
+# from Operateurs import intersectionRobuste  
 import numpy as np
 from shapely.geometry import Point, LineString
 import time
-
+import datetime
 
 """""""""""""" """ GMA """ """"""""""""""""""
 #############################################
@@ -23,55 +23,60 @@ import time
 
 
 # -> Operateurs
+# to remove?
 def intersectionRobuste(geomA, geomB, minRes , maxRes):
-    inter = shapely.intersection(geomA.buffer(0) , geomB.buffer(0))
-    if inter.is_empty is False  : 
-        return inter 
-    for i in range(0,10):
-        seuilDouglas = minRes + i * (maxRes - minRes)/10
-        Amodif = DouglasPeucker(geomA , seuilDouglas)
-        Bmodif = DouglasPeucker(geomB , seuilDouglas)
-        inter = shapely.intersection( Amodif.buffer(0) , Bmodif.buffer(0))
-        if inter.is_empty is False  : 
-            return inter
-    return None 
+    inter = shapely.intersection(geomA.buffer(0), geomB.buffer(0))
+    return inter
+    # if not inter.is_empty:
+    #     return inter
+    # for i in range(0,10):
+    #     seuilDouglas = minRes + i * (maxRes - minRes)/10
+    #     Amodif = DouglasPeucker(geomA , seuilDouglas)
+    #     Bmodif = DouglasPeucker(geomB , seuilDouglas)
+    #     inter = shapely.intersection( Amodif.buffer(0) , Bmodif.buffer(0))
+    #     if not inter.is_empty:
+    #         return inter
+    # return None 
             
 # methode Douglas-Peucker sur un polygon cf B Xiong et alt 2016
+# already implemented in shapely so...
 def DouglasPeucker(geom, seuil):
+    return geom.simplify(seuil, preserve_topology=True)
     
-    geom_mapped = shapely.geometry.mapping(geom)
-    geom = geom_mapped['coordinates'][0]
+    # geom_mapped = shapely.geometry.mapping(geom)
+    # geom = geom_mapped['coordinates'][0]
     
     
-    #recherche de la diagonale la plus grande par rapport au point initiale
-    dmax = 0 
-    A = geom[0]
-    noeudFin = 1
-    for j in range(1, len(geom)): 
-        B = geom[j]
-        dist = ((A[0] - B[0])**2 + (A[1] - B[1])**2)**.5
-        if dist > dmax:
-            noeudFin = j
-            dmax = dist 
+    # #recherche de la diagonale la plus grande par rapport au point initiale
+    # dmax = 0 
+    # A = geom[0]
+    # noeudFin = 1
+    # for j in range(1, len(geom)): 
+    #     B = geom[j]
+    #     dist = ((A[0] - B[0])**2 + (A[1] - B[1])**2)**.5
+    #     if dist > dmax:
+    #         noeudFin = j
+    #         dmax = dist 
     
-    #creation des listes
-    listA, listB = [], []
-    for i in range(len(geom)):
-        if i<=noeudFin : listA.append(geom[i])
-        else :           listB.append(geom[i])
+    # #creation des listes
+    # listA, listB = [], []
+    # for i in range(len(geom)):
+    #     if i<=noeudFin : listA.append(geom[i])
+    #     else :           listB.append(geom[i])
             
-    #DouglasPeucker sur une ligne 
-    ligneA = DouglasPeuckerLigne(listA, seuil)
-    ligneB = DouglasPeuckerLigne(listB, seuil)
+    # #DouglasPeucker sur une ligne 
+    # ligneA = DouglasPeuckerLigne(listA, seuil)
+    # ligneB = DouglasPeuckerLigne(listB, seuil)
     
-    ligne = ligneA + ligneB
+    # ligne = ligneA + ligneB
 
-    if len(ligne) <3 : 
-        return shapely.geometry.Polygon(geom)
-    geom = shapely.geometry.Polygon(ligne)
-    return geom
+    # if len(ligne) <3 : 
+    #     return shapely.geometry.Polygon(geom)
+    # geom = shapely.geometry.Polygon(ligne)
+    # return geom
     
 def DouglasPeuckerLigne(geom, seuil): 
+    print(geom)
     listFinal = [geom[0]]
     A = geom[0]
     C = geom[len(geom)-1]
@@ -103,8 +108,12 @@ def projete(A, B , C) :
 def distanceSurfaciqueRobuste(geomA , geomB, minRes, maxRes ) :
     inter = intersectionRobuste(geomA, geomB, minRes, maxRes)
     # en cas de problème d'intersection avec JTS, la methode retourne 2 
-    if inter == None : return 2 
-    union = shapely.union(geomA,geomB)
+    if inter == None : return 2
+    try:
+        union = shapely.union(geomA.buffer(0),geomB.buffer(0))
+    except shapely.errors.GEOSException:
+        print("union error with\n",geomA,"\n",geomB)
+        return 1
     if union == None : return 1
     return 1 - inter.area / union.area
 
@@ -438,8 +447,8 @@ def filtresLiens(liensRegroupes, param , popRef , popComp):
     return liensFiltres 
 
 
-
-def readShapefile (url) :
+# early attempt
+def readShapefile (url, id_column, generatedIds):
     data  = gpd.read_file(url)
     columns = [data.columns[i] for i in range(len(data.columns)) ]
     popRef = []
@@ -448,16 +457,28 @@ def readShapefile (url) :
         for j in range(len(columns)):
             L[columns[j]] = data[columns[j]][i]
         L['id_spatial'] = i
-        popRef.append(L) 
+        if generatedIds:
+            L[id_column] = i
+        print(L)
+        popRef.append(L)
     return popRef
  
 
 def unionListe(liste,pop):
-    union = getGeom(liste[0],pop)
-    for k in range(1, len(liste)):
-        union = shapely.union(union , getGeom(liste[k],pop))
-    
-    return union
+    try:
+        list = [getGeom(liste[k],pop).buffer(0) for k in range(0, len(liste))]
+        return shapely.union_all(list)
+    except shapely.errors.GEOSException:
+        print("union list error with\n",list)
+        return None
+    # union = getGeom(liste[0],pop)
+    # for k in range(1, len(liste)):
+    #     try:
+    #         union = shapely.union(union , getGeom(liste[k],pop))
+    #     except shapely.errors.GEOSException:
+    #         print("union list error with\n", union, "\n",getGeom(liste[k],pop))
+
+    # return union
 
 def getGeom(indice,pop):
     return pop[indice]['geometry']
@@ -901,9 +922,10 @@ def decision(resultList , fusion):
     
     return result
 
-def MCA(popRef, popComp ):
+# added id column names
+def MCA(popRef, popComp, id_ref, id_comp):
     
-    listeCandidat = SelectionCandidatInter(popRef, popComp )
+    listeCandidat = SelectionCandidatInter(popRef, popComp, id_ref, id_comp)
     
     listPopRef = listeCandidat[0]
     listPopComp = listeCandidat[1]
@@ -990,11 +1012,11 @@ def doAppariement(listPopRef, listPopComp):
     
     return (listCritere_i, listCritere , lres )
 
+# added id column names
+def SelectionCandidatInter(popRef, popComp, id_ref, id_comp):
     
-def SelectionCandidatInter(popRef, popComp ):
-    
-    idRef   = [ popRef[i]["ID"] for i in range(len(popRef)) ]
-    idComp   = [ popComp[i]["ID"] for i in range(len(popComp)) ]
+    idRef   = [ popRef[i][id_ref] for i in range(len(popRef)) ]
+    idComp   = [ popComp[i][id_comp] for i in range(len(popComp)) ]
     geomCom = [ popComp[i]["geometry"] for i in range(len(popComp)) ]
     geomRef = [ popRef[i]["geometry"] for i in range(len(popRef)) ]
     
@@ -1151,13 +1173,14 @@ def writeShapefile(popRef, popComp , data , url ) :
     )
 
     gdf.to_file(url)   
-    
-def separer(popRef , popComp ): 
+
+# added id column names
+def separer(popRef , popComp, id_ref, id_comp): 
     
     popRef4GMA = []
     popRef4MCA = []
     
-    listeCandidat = SelectionCandidatInter(popRef, popComp )
+    listeCandidat = SelectionCandidatInter(popRef, popComp, id_ref, id_comp)
 
     listPopRef = listeCandidat[0]
     
@@ -1167,7 +1190,7 @@ def separer(popRef , popComp ):
         
         popRef_i = {}
         
-        popRef_i['ID'] = listPopRef[i][0]
+        popRef_i[id_ref] = listPopRef[i][0]
         popRef_i['geometry'] = listPopRef[i][1]
         
         if len(listPopComp[i]) == 0 : 
@@ -1193,53 +1216,68 @@ def separer(popRef , popComp ):
         
     return ( popRef4GMA , popRef4MCA )
 
-def complete( popRef , popComp, liste):
+# added id column names
+def complete(popRef , popComp, liste, id_ref, id_comp):
     
     for i in range(len(popRef)):
         a = 0
         for j in range(len(liste)):
             
-            if popRef[i]['ID'] == liste[j][0] : 
+            if popRef[i][id_ref] == liste[j][0] : 
                 a = 1
         
         if a != 1 : 
-            liste.append((popRef[i]['ID'] , 0 , 1))
+            liste.append((popRef[i][id_ref] , 0 , 1))
             a = 0
             
     for i in range(len(popComp)):
         a = 0
         for j in range(len(liste)):
             
-            if popComp[i]['ID'] == liste[j][0] : 
+            if popComp[i][id_comp] == liste[j][0] : 
                 a = 1
         
         if a != 1 : 
-            liste.append(( popComp[i]['ID'] , 1 ,1))
+            liste.append(( popComp[i][id_comp] , 1 ,1))
             a = 0
     
     return  liste 
     
    
-def readShapefile (url) :
-    data  = gpd.read_file(url)
-    columns = [data.columns[i] for i in range(len(data.columns)) ]
+# remove because duplicated
+# def readShapefile (url) :
+#     data  = gpd.read_file(url)
+#     columns = [data.columns[i] for i in range(len(data.columns)) ]
+#     popRef = []
+#     for i in range(len(data)):
+#         L = {}
+#         for j in range(len(columns)):
+#             L[columns[j]] = data[columns[j]][i]
+#         L['id_spatial'] = i
+#         popRef.append(L) 
+#     return popRef
+
+# converts the dataframe to the expected array
+def toArray(df):
+    columns = [df.columns[i] for i in range(len(df.columns)) ]
     popRef = []
-    for i in range(len(data)):
+    for i in range(len(df)):
         L = {}
         for j in range(len(columns)):
-            L[columns[j]] = data[columns[j]][i]
+            L[columns[j]] = df[columns[j]][i]
         L['id_spatial'] = i
         popRef.append(L) 
     return popRef
 
-def main__(workdirectory , consigne):
-    
-    url1 = workdirectory + str('popRef.shp')
-    url2 = workdirectory + str('popComp.shp')
+# added id column names, output_file and generatedIds
+def main__(workdirectory, ref, comp, id_ref, id_comp, consigne, output_file, generatedIds=False):
+    print(datetime.datetime.now(),"Running",consigne)
+    url1 = workdirectory + str(ref)
+    url2 = workdirectory + str(comp)
     
     param = {}
     param["surface_min_intersection"] = 1;
-    param["pourcentage_min_intersection"] = 1.0;
+    param["pourcentage_min_intersection"] = 0.1;
     param["pourcentage_intersection_sur"] = 0.8;
     param["minimiseDistanceSurfacique"] = True;
     param["distSurfMaxFinal"] = 0.25;
@@ -1251,47 +1289,122 @@ def main__(workdirectory , consigne):
     param["persistant"] = False;
     param["resolutionMin"] = 1;
     param["resolutionMax"] = 11;
-    
-    popRef = readShapefile (url1)
-    popComp = readShapefile (url2) 
-    url = "/Users/guardiola/Desktop/ENSG_troisieme_annee/Alternance/semain_20/merged01.shp"
+
+    # read using geopandas to reuse the dataframes in the export
+    gpd1  = gpd.read_file(url1)
+    gpd2  = gpd.read_file(url2)
+    # generated ids based on row number => same as 'id_spatial'...
+    if generatedIds:
+        gpd1[id_ref] = range(0, len(gpd1))
+        gpd2[id_comp] = range(0, len(gpd2))
+    popRef = toArray(gpd1)
+    popComp = toArray(gpd2)
+
+    # popRef = readShapefile (url1, id_ref, generatedIds)
+    # popComp = readShapefile (url2, id_comp, generatedIds) 
+    # url = "data/merged01.shp"
     
     if consigne == 'GMA' : 
         Appariement = appariementSurfaces(popRef, popComp, param)
+        Appariement2 = appariementSurfaces(popComp,popRef, param)
+        Appariement.extend(list(map(lambda m:[m[1],m[0],m[2]],Appariement2)))
+        #TODO remove duplicates
         
     elif consigne == 'MCA' : 
-        Appariement    = MCA( popRef, popComp)
-        
+        Appariement  = MCA(popRef, popComp, id_ref, id_comp)
+        Appariement2 = MCA(popComp, popRef, id_comp, id_ref)
+        Appariement.extend(list(map(lambda m:[m[1],m[0],m[2]],Appariement2)))
+        #TODO remove duplicates
+    
     elif consigne == 'Multi' : 
-        
-        ( popRef4GMA , popRef4MCA ) = separer(popRef , popComp )
-        Appariement    = MCA( popRef4MCA, popComp)
+        ( popRef4GMA , popRef4MCA ) = separer(popRef , popComp, id_ref, id_comp)
+        Appariement    = MCA(popRef4MCA, popComp, id_ref, id_comp)
         AppariementGMA = appariementSurfaces(popRef4GMA, popComp, param)
         for i in range(len(AppariementGMA)):
-            Appariement.append(AppariementGMA[i])
-        
+            # convert to a similar link type
+            # careful: GMA and MCA do not handle the same ids: GMA returns row indices and MCA return actual ids (from the given column)
+            match = AppariementGMA[i]
+            Appariement.append([popRef4GMA[match[0]][id_ref],popComp[match[1]][id_comp],match[2]])
+        # TODO make the matching the other way too?
     else : 
-        return 'la consgine n est pas clair. Vous devez renseigner GMA, MCA ou multi'
-        
-    liste = complete(popRef, popComp , Appariement)
+        return 'la consigne n est pas clair. Vous devez renseigner GMA, MCA ou multi'
 
+    # create the link for the output
+    def createLink(match):
+        # print("LINK=",match[0],match[1],match[2])
+        id1 = match[0]
+        id2 = match[1]
+        if consigne == 'GMA' : 
+            # careful: GMA and MCA do not handle the same ids: GMA returns row indices and MCA return actual ids (from the given column)
+            id1 = popRef[match[0]][id_ref]
+            geom1 = popRef[match[0]]['geometry']
+            id2 = popComp[match[1]][id_comp]
+            geom2 = popComp[match[1]]['geometry']
+        else :
+            geom1 = gpd1[gpd1[id_ref]==match[0]]['geometry'].iloc[0]
+            geom2 = gpd2[gpd2[id_comp]==match[1]]['geometry'].iloc[0]
+        return (id1,id2,match[2],LineString([geom1.centroid,geom2.centroid]))
+    links = list(map(createLink,Appariement))
+    id1,id2,value,geom = list(zip(*links))
+    id1List=list(id1)
+    id2List=list(id2)
+    valueList=list(value)
+    geomList=list(geom)
+    df = pd.DataFrame(
+        {
+            "ID1": id1List,
+            "ID2": id2List,
+            "prob": valueList,
+        }
+    )
+    # remove duplicates (ignoring prob just in case)
+    # df = df.drop_duplicates(subset=['ID1', 'ID2'])
+    gdf = gpd.GeoDataFrame( df, geometry=geomList, crs="EPSG:2154" )
+    gdf.to_file(output_file, layer=consigne, driver="GPKG")
+    # for i, line in enumerate(Appariement):
+    #     print(i,line)
+    # for a in Appariement:
+    #     print(a)
+
+    # liste = complete(popRef, popComp , Appariement)
+    # print(len(liste))
     #writeShapefile(popRef, popComp , Appariement , url)
-    
-    
+    print(datetime.datetime.now(),"Done with",consigne)
+
+# TODO ajouter paramètres cli (paramètre booléen pour appariement dans les 2 sens notamment)
 if __name__ == "__main__" : 
-    
-    workdirectory = "/Users/guardiola/Desktop/ENSG_troisieme_annee/Alternance/semain_20/popRef.shp"
-    url2 = "/Users/guardiola/Desktop/ENSG_troisieme_annee/Alternance/semain_20/popComp.shp"
-    
-    main(workdirectory , 'Multi')
-    
-    
-    
-    
-    
-
- 
-
-    
-  
-    
+    workdirectory = "data/"
+    # test data
+    # ref = 'popRef.shp'
+    # comp = 'popComp.shp'
+    # id_ref = 'ID'
+    # id_comp = 'ID'
+    # generatedIds = False
+    ref = "Buildings_2011_02mp_buildings_with_fields_DP.shp"
+    comp = "Buildings_2024_02mp_buildings_with_fields_DP.shp"
+    id_ref = 'ID'
+    id_comp = 'ID'
+    # output_file = 'links.gpkg'
+    output_file = 'links_iasi.gpkg'
+    # generatedIds is a simple way to create the id columns based on the row number (no unique id on iasi data)
+    generatedIds = True
+    print(datetime.datetime.now(),"Let's go")
+    main__(workdirectory, ref, comp, id_ref, id_comp, 'MCA', output_file, generatedIds)
+    main__(workdirectory, ref, comp, id_ref, id_comp, 'GMA', output_file, generatedIds)
+    main__(workdirectory, ref, comp, id_ref, id_comp, 'Multi', output_file, generatedIds)
+    # saving ref & comp layers
+    url1 = workdirectory + str(ref)
+    url2 = workdirectory + str(comp)
+    gpd1  = gpd.read_file(url1)
+    gpd2  = gpd.read_file(url2)
+    if generatedIds:
+        # remove the id column because of conflict with ID. Ok, I could have changed the id_ref & id_comp to something else...
+        gpd1 = gpd1.drop(columns=['id'])
+        gpd2 = gpd2.drop(columns=['id'])
+        # add the generated ids (I know, its being done 4 times now)
+        gpd1[id_ref] = range(0, len(gpd1))
+        gpd2[id_comp] = range(0, len(gpd2))
+    # save the ref & comp layers
+    gpd1.to_file(output_file, layer="ref", driver="GPKG")
+    gpd2.to_file(output_file, layer="comp", driver="GPKG")
+    print(datetime.datetime.now(),"All done")
