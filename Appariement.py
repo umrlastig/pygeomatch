@@ -2,14 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import shapely
-from shapely.geometry import Point, LineString
+from shapely.geometry import LineString
 import geopandas as gpd
 import pandas as pd
-# remove to prevent confusion with the function here
-# from Operateurs import intersectionRobuste  
-import numpy as np
-from shapely.geometry import Point, LineString
-import time
 import datetime
 import pymatch
 
@@ -131,8 +126,8 @@ def main__(workdirectory, ref, comp, id_ref, id_comp, consigne, output_file, gen
     # url = "data/merged01.shp"
     
     if consigne == 'GMA' : 
-        Appariement = pymatch.appariementSurfaces(popRef, popComp, param)
-        Appariement2 = pymatch.appariementSurfaces(popComp,popRef, param)
+        Appariement = pymatch.appariementSurfaces(gpd1, gpd2, param)
+        Appariement2 = pymatch.appariementSurfaces(gpd2, gpd1, param)
         Appariement.extend(list(map(lambda m:[m[1],m[0],m[2]],Appariement2)))
         #TODO remove duplicates
         
@@ -167,14 +162,16 @@ def main__(workdirectory, ref, comp, id_ref, id_comp, consigne, output_file, gen
         id2 = match[1]
         if consigne == 'GMA' : 
             # careful: GMA and MCA do not handle the same ids: GMA returns row indices and MCA return actual ids (from the given column)
-            id1 = popRef[match[0]][id_ref]
-            geom1 = popRef[match[0]]['geometry']
-            id2 = popComp[match[1]][id_comp]
-            geom2 = popComp[match[1]]['geometry']
+            # id1 = popRef[match[0]][id_ref]
+            # geom1 = popRef[match[0]]['geometry']
+            # id2 = popComp[match[1]][id_comp]
+            # geom2 = popComp[match[1]]['geometry']
+            geom1 = gpd1.loc[id1,'geometry']
+            geom2 = gpd2.loc[id2,'geometry']
         else :
             geom1 = gpd1[gpd1[id_ref]==match[0]]['geometry'].iloc[0]
             geom2 = gpd2[gpd2[id_comp]==match[1]]['geometry'].iloc[0]
-        return (id1,id2,match[2],LineString([geom1.centroid,geom2.centroid]))
+        return (id1,id2,match[2],LineString([geom1.centroid,geom2.centroid])) # type: ignore
     links = list(map(createLink,Appariement))
     id1,id2,value,geom = list(zip(*links))
     id1List=list(id1)
@@ -212,7 +209,7 @@ if __name__ == "__main__" :
         id_ref = 'ID'
         id_comp = 'ID'
         generatedIds = False
-        output_file = 'links.gpkg'
+        output_file = 'links_gma.gpkg'
     else:
         ref = "Buildings_2011_02mp_buildings_with_fields_DP.shp"
         comp = "Buildings_2024_02mp_buildings_with_fields_DP.shp"
@@ -221,8 +218,8 @@ if __name__ == "__main__" :
         output_file = 'links_iasi_2.gpkg'
         generatedIds = True
     print(datetime.datetime.now(),"Let's go")
-    main__(workdirectory, ref, comp, id_ref, id_comp, 'MCA2', output_file, generatedIds)
-    # main__(workdirectory, ref, comp, id_ref, id_comp, 'GMA', output_file, generatedIds)
+    # main__(workdirectory, ref, comp, id_ref, id_comp, 'MCA2', output_file, generatedIds)
+    main__(workdirectory, ref, comp, id_ref, id_comp, 'GMA', output_file, generatedIds)
     #main__(workdirectory, ref, comp, id_ref, id_comp, 'Multi', output_file, generatedIds)
     # saving ref & comp layers
     url1 = workdirectory + str(ref)
