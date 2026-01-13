@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pymatch"
+version = "0.0.1"
+authors = [
+  { name="Paul Guardiola", email="Paul.Guardiola@ign.fr" },
+  { name="Juste Raimbault", email="Juste.Raimbault@ign.fr" },
+  { name="Ana-Maria Raimond", email="Ana-Maria.Raimond@ign.fr" },
+  { name="Julien Perret", email="Julien.Perret@ign.fr" },
+]
+description = "A package to match geographical features"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "GPLv4"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/umrlastig/pymatch/"
+Issues = "https://github.com/umrlastig/pymatch/issues"
