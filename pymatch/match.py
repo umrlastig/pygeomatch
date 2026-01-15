@@ -66,7 +66,7 @@ def main(
             writable=False,
             readable=True,
             resolve_path=True,
-            help="Optional configuration file. Mandatory for MCA.")] = Path("default_parameters.json"),
+            help="Optional configuration file. Mandatory for GMoA and Multi.")] = Path("default_parameters.json"),
         algorithm: Annotated[MatchingAlgorithm, typer.Argument(help="The algorithm to use (GMA, MCA, Multi, MCA2, Multi2)")] = MatchingAlgorithm.multi_criteria,
         export_input: Annotated[bool, typer.Option("--export",help="If true, export the input layers in the output file.")] = True
 ):
