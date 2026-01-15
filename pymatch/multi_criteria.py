@@ -2,6 +2,7 @@ import numpy
 import geopandas as gpd
 import numpy as np
 import shapely
+from itertools import groupby
 
 """""""""""""" """ MCA """ """"""""""""""""""
 #############################################
@@ -13,11 +14,9 @@ def dempster(liste_critere):
     :param liste_critere: a list of candidates' criteria
     """
     # ajout candidat non app
-    masseCan = []
-    for i in range(len(liste_critere)):
-        masseCan.append(conjunctiveJoinRule(liste_critere[i]))
+    masseCan = [conjunctiveJoinRule(liste_critere[i]) for i in range(len(liste_critere))]
     # fusion candidat
-    (resultList, fusCandidat) = candidateFusion(masseCan)
+    resultList, fusCandidat = candidateFusion(masseCan)
     # decision
     return decision(resultList, fusCandidat)
 
@@ -27,7 +26,7 @@ def conjunctiveJoinRule(criteria):
     
     :param criteria: a list of criteria
     """
-    print("criteria", criteria)
+    # print("criteria", criteria)
     dic = {}
     result = {}
     transit = {}
@@ -107,7 +106,7 @@ def conjunctiveJoinRule(criteria):
         transit["-app"] = result["-app"]
         transit["theta"] = result["theta"]
         transit["phi"] = result["phi"]
-    print("result", result)
+    # print("result", result)
     return result
 
 
@@ -117,7 +116,7 @@ def candidateFusion(candidates):
     
     :param candidates: a list of combined masses for candidates
     """
-    print("candidates",candidates)
+    # print("candidates",candidates)
     # Changer pa rapport au fait que masseCan est un dictionnaire
     # intialisation des dictionnaires
     if len(candidates) > 9:
@@ -230,7 +229,7 @@ def candidateFusion(candidates):
         sum_ += result[string]
     """
 
-    print("result",result)
+    # print("result",result)
     return (resultList, result)
 
 def loi(x, y):
@@ -357,10 +356,10 @@ def decision(resultList, fusion):
     proba['NA'] = resultNA
     proba['NA'] += fusion['theta']/(a+1)
 
-    sum_ = 0
-    for i in range(len(proba)):
-        string = str(list(proba.keys())[i])
-        sum_ += proba[string]
+    # sum_ = 0
+    # for i in range(len(proba)):
+    #     string = str(list(proba.keys())[i])
+    #     sum_ += proba[string]
 
     max_ = 0
     for i in range(len(list(proba.keys()))):
@@ -368,55 +367,55 @@ def decision(resultList, fusion):
             max_ = proba[str(list(proba.keys())[i])]
             result = str(list(proba.keys())[i])
 
-    if result == 'NA':
-        return 'NA'
-
     epsilon = 0.01
-    if proba['NA'] - epsilon < max_ and max_ < proba['NA'] + epsilon:
+    # if the probability for NA is close to the max, chose NA too
+    if (result == 'NA') | (max_ < proba['NA'] + epsilon):
         return "NA"
 
     return result
 
-def selectCandidates(popRef, popComp, id_ref, id_comp):
+def selectCandidates(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame):
     """
     Identify candidates for ref features.
+    It returns two lists:
+    - a list of (index, geometry) from the ref geodataframe
+    - a list of corresponding candidates (index, geometry) from the comp geodataframe
     
     :param popRef: ref features
+    :type popRef: gpd.GeoDataFrame
     :param popComp: comp features
-    :param id_ref: ref id column name
-    :param id_comp: comp id column name
+    :type popComp: gpd.GeoDataFrame
     """
-    idRef = [popRef[i][id_ref] for i in range(len(popRef))]
-    idComp = [popComp[i][id_comp] for i in range(len(popComp))]
-    geomCom = [popComp[i]["geometry"] for i in range(len(popComp))]
-    geomRef = [popRef[i]["geometry"] for i in range(len(popRef))]
-
-    ref = gpd.GeoSeries(geomRef)
-    com = gpd.GeoSeries(geomCom)
-
     # The first subarray contains input geometry integer indices. The second subarray contains tree geometry integer indices.
-    (refIndices, compIndices) = com.sindex.query(ref, predicate="intersects")
-    # creation liste popRef
-    listeRef = [(idRef[refIndices[0]], geomRef[refIndices[0]])]
-    for i in range(len(refIndices)-1):
-        if refIndices[i] == refIndices[i+1]:
-            continue
-        else:
-            listeRef.append((idRef[refIndices[i+1]], geomRef[refIndices[i+1]]))
+    refIndices, compIndices = popComp["geometry"].sindex.query(popRef["geometry"], predicate="intersects")
+    # # creation liste popRef
+    # listeRef = [(idRef[refIndices[0]], geomRef[refIndices[0]])]
+    # for i in range(len(refIndices)-1):
+    #     if refIndices[i] == refIndices[i+1]:
+    #         continue
+    #     else:
+    #         listeRef.append((idRef[refIndices[i+1]], geomRef[refIndices[i+1]]))
 
-    # creation liste popComp
-    listeComp = []
-    listeComp_i = [(idComp[compIndices[0]], geomCom[compIndices[0]])]
-    for i in range(len(refIndices)-1):
-        if refIndices[i] == refIndices[i+1]:
-            listeComp_i.append(
-                (idComp[compIndices[i+1]], geomCom[compIndices[i+1]]))
-        else:
-            listeComp.append(listeComp_i)
-            listeComp_i = [(idComp[compIndices[i+1]],
-                            geomCom[compIndices[i+1]])]
-    listeComp.append(listeComp_i)
-    return (listeRef, listeComp)
+    # # creation liste popComp
+    # listeComp = []
+    # listeComp_i = [(idComp[compIndices[0]], geomCom[compIndices[0]])]
+    # for i in range(len(refIndices)-1):
+    #     if refIndices[i] == refIndices[i+1]:
+    #         listeComp_i.append(
+    #             (idComp[compIndices[i+1]], geomCom[compIndices[i+1]]))
+    #     else:
+    #         listeComp.append(listeComp_i)
+    #         listeComp_i = [(idComp[compIndices[i+1]],
+    #                         geomCom[compIndices[i+1]])]
+    # listeComp.append(listeComp_i)
+    # return (listeRef, listeComp)
+    # print(popRef.head())
+    zipped = zip(refIndices, compIndices)
+    # print(refIndices)
+    # group by the ref index (z[0]), map the results to dict entries with the ref index (y[0]) and keep only the second element of the grouped tuples (t[1])
+    # ref, comp = zip(*list(map(lambda y: ((y[0], popRef.loc[y[0],"geometry"]), list(map(lambda t: (t[1], popComp.loc[t[1],"geometry"]), y[1]))), groupby(zipped, lambda z: z[0]))))
+    ref, comp = zip(*list(map(lambda y: ((y[0], popRef.iloc[[y[0]]].iloc[0]["geometry"]), list(map(lambda t: (t[1], popComp.iloc[[t[1]]].iloc[0]["geometry"]), y[1]))), groupby(zipped, lambda z: z[0]))))
+    return (list(ref), list(comp))
 
 
 def processMatch(featureRef, listPopComp):
@@ -471,26 +470,21 @@ def processMatch(featureRef, listPopComp):
     lres = dempster(listCritere)
     return (listCritere_i, listCritere, lres)
 
-def MCA(popRef, popComp, id_ref, id_comp):
+def MCA(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame):
     """
     Process Multi Criteria Matching.
     
     :param popRef: Ref features
     :param popComp: Comp features
-    :param id_ref: ref id column name
-    :param id_comp: comp id column name
     """
     # get the list of ref objects and their corresponding candidates
-    (listPopRef, listPopComp) = selectCandidates(popRef, popComp, id_ref, id_comp)
+    listPopRef, listPopComp = selectCandidates(popRef, popComp)
     App = []
     for i in range(len(listPopRef)):
         # match ref feature i with its candidates
+        # listPopRef[i] is refIndex, refGeometry
         (listCritere_i, _, liste) = processMatch(listPopRef[i], listPopComp[i])
-        if liste == "NA":
-            continue
-        elif liste == "theta":
-            continue
-        else:
+        if not((liste == "NA") | (liste == "theta")):
             decision = int(liste[1]) - 1
             App.append((listPopRef[i][0], listPopComp[i][decision][0], listCritere_i[decision]))
     return App

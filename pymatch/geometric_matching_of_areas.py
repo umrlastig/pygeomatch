@@ -35,6 +35,15 @@ def getCompletude(geomA , geomB):
 # defini dans la thèse de Atef Bel Hadj (2001)
 
 def appariementSurfaces(ref, comp, param: dict):
+    """
+    Docstring for appariementSurfaces
+    
+    :param ref: Description
+    :param comp: Description
+    :param param: Description
+    :type param: dict
+    """
+    #TODO check consistency of all these methods: they don't return the same thing at the moment
     # pre-appariement surfaces
     liensPreApp = preAppariementsSurfaces_avec_index_spatiale(ref, comp , param)
     
@@ -72,13 +81,15 @@ def appariementSurfaces(ref, comp, param: dict):
 
 def preAppariementsSurfaces_avec_index_spatiale(ref, comp, param ):
     # The first subarray contains input geometry integer indices. The second subarray contains tree geometry integer indices.
-    (refIndices, compIndices) = comp["geometry"].sindex.query(ref["geometry"], predicate="intersects")
+    refIndices, compIndices = comp["geometry"].sindex.query(ref["geometry"], predicate="intersects")
     # zip both lists into tuples (refIndex, compIndex)
     zipped = zip(refIndices, compIndices)
     # group by the ref index (z[0]), map the results to dict entries with the ref index (y[0]) and keep only the second element of the grouped tuples (t[1]) to compure measures
     def measures(a, b):
-        geom_a = ref.loc[a,"geometry"].buffer(0)
-        geom_b = comp.loc[b,"geometry"].buffer(0)
+        # geom_a = ref.loc[a,"geometry"].buffer(0)
+        # geom_b = comp.loc[b,"geometry"].buffer(0)
+        geom_a = ref.iloc[[a]].iloc[0]["geometry"].buffer(0)
+        geom_b = comp.loc[[b]].iloc[0]["geometry"].buffer(0)
         intersection = shapely.intersection(geom_a , geom_b).area
         intersection_ratio = shapely.intersection(geom_a, geom_b).area / (min(geom_a.area , geom_b.area))
         _surface_distance = surface_distance(geom_a, geom_b)
@@ -96,16 +107,18 @@ def preAppariementsSurfaces_avec_index_spatiale(ref, comp, param ):
 
     return list(map(map_outputs, filter(filter_links, links)))
 
-# On recherche les regroupements optimaux de liens de pré-traitement, pour
-# maximiser la distance surfacique entre les groupes de référence et de 
-# comparaison 
-# NB l'appariement est symétrique 
-# param   : paramètres de l'appariement 
-# preAppLiens : liens issus du pré-appariement 
-# return liens d'appariement calculés 
-
 
 def rechercheRegroupementsOptimaux (preAppLiens, ref , comp , param):
+    """
+    On recherche les regroupements optimaux de liens de pré-traitement, pour maximiser la distance surfacique entre les groupes de référence et de comparaison .
+    NB l'appariement est symétrique 
+    Returns the links (liens d'appariement calculés)
+    
+    :param preAppLiens: liens issus du pré-appariement 
+    :param ref: Description
+    :param comp: Description
+    :param param: paramètres de l'appariement 
+    """
     
     matrice = np.zeros((len(ref), len(comp)))
     for k in range(len(preAppLiens)):
@@ -225,7 +238,8 @@ def unionListe(liste,pop):
     # return union
 
 def getGeom(indice,pop):
-    return pop.loc[indice,'geometry']
+    # return pop.loc[indice,'geometry']
+    return pop.iloc[[indice]].iloc[0]['geometry']
 
 # Il me semble qu'on ajoute la zone petite à la zone plus grande pour en 
 # faire une nouvelle entité 
@@ -272,11 +286,8 @@ def mesureEvaluationGroupe(groupe , popRef , popComp , param):
     
     return result 
         
-def filtresLiens(liensRegroupes, param, popRef , popComp):
-    # liensRegroupes = [ [ idRef, idCom, dsi]]
-    
+def filtresLiens(liensRegroupes, param, popRef , popComp):    
     liensFiltres = []
-    
     for i in range(len(liensRegroupes)):
         lien = []
         if param["minimiseDistanceSurfacique"] : 
@@ -285,17 +296,13 @@ def filtresLiens(liensRegroupes, param, popRef , popComp):
                 lien.append(liensRegroupes[i][0])
                 lien.append(liensRegroupes[i][1])
                 lien.append(distSurf)
-                #liens.append(getArcs)
             else : 
-                exactitude = getExactitude(popRef.loc[liensRegroupes[i][0],"geometry"].buffer(0) , popComp.loc[liensRegroupes[i][1],"geometry"].buffer(0) )
-                completude = getCompletude(popRef.loc[liensRegroupes[i][0],"geometry"].buffer(0) , popComp.loc[liensRegroupes[i][1],"geometry"].buffer(0) )
-                # exactitude = liensRegroupes[2]
-                # completude = liensRegroupes[3]
+                exactitude = getExactitude(getGeom(liensRegroupes[i][0],popRef).buffer(0), getGeom(liensRegroupes[i][1],popComp).buffer(0) )
+                completude = getCompletude(getGeom(liensRegroupes[i][0],popRef).buffer(0), getGeom(liensRegroupes[i][1],popComp).buffer(0) )
                 if exactitude > param["completudeExactitudeMinFinal"] and completude > param["completudeExactitudeMinFinal"]: 
                     lien.append(liensRegroupes[i][0])
                     lien.append(liensRegroupes[i][1])
                     lien.append(exactitude + completude)
-                    #liens.append(getArcs)
         if len(lien) != 0 :
             liensFiltres.append(lien)
     return liensFiltres 
