@@ -1,0 +1,15 @@
+{
+    "surface_min_intersection": 1,
+    "pourcentage_min_intersection": 0.1,
+    "pourcentage_intersection_sur": 0.8,
+    "minimiseDistanceSurfacique": true,
+    "distSurfMaxFinal": 0.25,
+    "completudeExactitudeMinFinal": 0.8,
+    "regroupementOptimal": true,
+    "filtrageFinal": true,
+    "ajoutPetitesSurfaces": true,
+    "seuilPourcentageTaillePetitesSurfaces": 0.1,
+    "persistant": false,
+    "resolutionMin": 1,
+    "resolutionMax": 11
+}
