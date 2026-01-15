@@ -12,41 +12,38 @@ import pymatch
 #############################################
 
 # added id column names
-def separer(popRef , popComp): 
+def separate(popRef , popComp): 
     popRef4GMA = []
     popRef4MCA = []
-    
     listPopRef, listPopComp = pymatch.selectCandidates(popRef, popComp)
-    
     for i in range(len(listPopRef)):
-        
-        # popRef_i = {}
-        
-        # popRef_i[id_ref] = listPopRef[i][0]
-        # popRef_i['geometry'] = listPopRef[i][1]
-        
-        if len(listPopComp[i]) == 0 : 
-            popRef4MCA.append(listPopRef[i][0])
-        
-        else : 
-            
-            a = 0 
-            
-            for j in range(len(listPopComp[i])) : 
-                
-                geomRef = listPopRef[i][1].buffer(0)
-                geomComp = listPopComp[i][j][1].buffer(0)
+        refIndex, refGeometry = listPopRef[i]
+        if len(listPopComp[i]) == 0:
+            # there is no candidate: can it really happen (I mean: does the function actually returns such a thing)?
+            popRef4MCA.append(refIndex)
+        else:
+            def condition(comp):
+                geomRef = refGeometry.buffer(0)
+                geomComp = comp[1].buffer(0)
                 inter = shapely.intersection(geomRef , geomComp)
                 union = shapely.union(geomRef,geomComp)
-                
                 ds =  1 - inter.area /union.area 
-                
-                if ds < 0.7 : a = 1
-                
-            if a == 1 : popRef4MCA.append(listPopRef[i][0])
-            else : popRef4GMA.append(listPopRef[i][0])
-        
-    return ( popRef.iloc[popRef4GMA] , popRef.iloc[popRef4MCA] )
+                return ds < 0.7
+            # a = 0
+            # for j in range(len(listPopComp[i])) : 
+            #     geomRef = listPopRef[i][1].buffer(0)
+            #     geomComp = listPopComp[i][j][1].buffer(0)
+            #     inter = shapely.intersection(geomRef , geomComp)
+            #     union = shapely.union(geomRef,geomComp)
+            #     ds =  1 - inter.area /union.area 
+            #     if ds < 0.7 : a = 1
+            # if a == 1 : popRef4MCA.append(listPopRef[i][0])
+            # else : popRef4GMA.append(listPopRef[i][0])
+            if any(condition(c) for c in listPopComp[i]):
+                popRef4MCA.append(refIndex)
+            else:
+                popRef4GMA.append(refIndex)
+    return popRef.iloc[popRef4GMA], popRef.iloc[popRef4MCA]
 
 # added id column names
 def complete(popRef , popComp, liste, id_ref, id_comp):    
@@ -110,20 +107,25 @@ def main__(workdirectory, ref, comp, consigne, output_file):
     # read using geopandas to reuse the dataframes in the export
     gpd1  = gpd.read_file(url1)
     gpd2  = gpd.read_file(url2)
-    
-    if consigne == 'GMA' : 
-        Appariement = pymatch.appariementSurfaces(gpd1, gpd2, param)
-        Appariement2 = pymatch.appariementSurfaces(gpd2, gpd1, param)
-        Appariement.extend(list(map(lambda m:[m[1],m[0],m[2]],Appariement2)))
+    def match_both_ways(f, p1, p2):
+        """
+        Use function f to match the features in both ways and return the merged result.
         
-    elif consigne == 'MCA' : 
-        Appariement  = pymatch.MCA(gpd1, gpd2)
-        Appariement2 = pymatch.MCA(gpd2, gpd1)
-        Appariement.extend(list(map(lambda m:[m[1],m[0],m[2]],Appariement2)))
-    
-    elif consigne == 'Multi' : 
+        :param f: matching function
+        :param p1: parameters for way 1
+        :param p2: parameters for way 2
+        """
+        matches_1 = f(*p1)
+        matches_2 = f(*p2)
+        # reverse the indices for the second matches
+        return matches_1 + list(map(lambda m:[m[1],m[0],m[2]],matches_2))
+    if consigne == 'GMA':
+        Appariement = match_both_ways(pymatch.appariementSurfaces, (gpd1, gpd2, param), (gpd2, gpd1, param))        
+    elif consigne == 'MCA':
+        Appariement = match_both_ways(pymatch.MCA, (gpd1, gpd2), (gpd2, gpd1))
+    elif consigne == 'Multi':
         def multi_match(ref, comp):
-            popRef4GMA, popRef4MCA = separer(ref, comp)
+            popRef4GMA, popRef4MCA = separate(ref, comp)
             matches    = pymatch.MCA(popRef4MCA, comp)
             # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
             # to do that, we use the name of the index (with .name) and get the index with get_loc
@@ -132,14 +134,21 @@ def main__(workdirectory, ref, comp, consigne, output_file):
             matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
             matches.extend(matches_GMA)
             return matches
-        Appariement = multi_match(gpd1, gpd2)
-        Appariement2 = multi_match(gpd2, gpd1)
-        Appariement.extend(list(map(lambda m:[m[1],m[0],m[2]],Appariement2)))
+        Appariement = match_both_ways(multi_match, (gpd1, gpd2), (gpd2, gpd1))
     elif consigne == 'MCA2':
-        Appariement = pymatch.MCA2(gpd1, gpd2)
-        Appariement2 = pymatch.MCA2(gpd2, gpd1)
-        list(map(lambda m:[m[1],m[0],m[2]],Appariement2))
-        Appariement.extend(list(map(lambda m:[m[1],m[0],m[2]],Appariement2)))
+        Appariement = match_both_ways(pymatch.MCA2, (gpd1, gpd2), (gpd2, gpd1))
+    elif consigne == 'Multi2':
+        def multi_match2(ref, comp):
+            popRef4GMA, popRef4MCA = separate(ref, comp)
+            matches    = pymatch.MCA2(popRef4MCA, comp)
+            # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
+            # to do that, we use the name of the index (with .name) and get the index with get_loc
+            matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
+            matches_GMA = pymatch.appariementSurfaces(popRef4GMA, comp, param)
+            matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
+            matches.extend(matches_GMA)
+            return matches
+        Appariement = match_both_ways(multi_match2, (gpd1, gpd2), (gpd2, gpd1))
     else :
         return 'la consigne n est pas clair. Vous devez renseigner GMA, MCA ou multi'
 
@@ -164,10 +173,10 @@ def main__(workdirectory, ref, comp, consigne, output_file):
     # use crs from input file
     gdf = gpd.GeoDataFrame( df, geometry=geomList, crs=gpd1.crs )
     gdf.to_file(output_file, layer=consigne, driver="GPKG")
-
     # liste = complete(popRef, popComp , Appariement)
     # print(len(liste))
     #writeShapefile(popRef, popComp , Appariement , url)
+    print(gpd1.index)
     print(datetime.datetime.now(),"Done with",consigne)
 
 # TODO ajouter paramètres cli (paramètre booléen pour appariement dans les 2 sens notamment)
@@ -179,38 +188,29 @@ if __name__ == "__main__" :
     if test:
         ref = 'popRef.shp'
         comp = 'popComp.shp'
-        id_ref = 'ID'
-        id_comp = 'ID'
-        generatedIds = False
         output_file = 'links_gma.gpkg'
     else:
         ref = "Buildings_2011_02mp_buildings_with_fields_DP.shp"
         comp = "Buildings_2024_02mp_buildings_with_fields_DP.shp"
-        id_ref = 'ID'
-        id_comp = 'ID'
         output_file = 'links_iasi_2.gpkg'
-        generatedIds = True
     print(datetime.datetime.now(),"Let's go")
     
     # TODO we now export the integer-location based index as ID. 
     # Remains the question of the export: should we export the id selected by the used or the index selected by geopandas?
 
-    # main__(workdirectory, ref, comp, 'MCA', output_file)
-    main__(workdirectory, ref, comp, 'MCA2', output_file)
     # main__(workdirectory, ref, comp, 'GMA', output_file)
+    # main__(workdirectory, ref, comp, 'MCA', output_file)
+    # main__(workdirectory, ref, comp, 'MCA2', output_file)
     # main__(workdirectory, ref, comp, 'Multi', output_file)
+    main__(workdirectory, ref, comp, 'Multi2', output_file)
     # saving ref & comp layers
     url1 = workdirectory + str(ref)
     url2 = workdirectory + str(comp)
     gpd1  = gpd.read_file(url1)
     gpd2  = gpd.read_file(url2)
-    if generatedIds:
-        # remove the id column because of conflict with ID. Ok, I could have changed the id_ref & id_comp to something else...
-        gpd1 = gpd1.drop(columns=['id'])
-        gpd2 = gpd2.drop(columns=['id'])
-        # add the generated ids (I know, its being done 4 times now)
-        gpd1[id_ref] = range(0, len(gpd1))
-        gpd2[id_comp] = range(0, len(gpd2))
+    # add the index values used by the algorithms (for further joining or else)
+    gpd1["pymatch_index"] = range(0, len(gpd1))
+    gpd2["pymatch_index"] = range(0, len(gpd2))
     # save the ref & comp layers
     gpd1.to_file(output_file, layer="ref", driver="GPKG")
     gpd2.to_file(output_file, layer="comp", driver="GPKG")
