@@ -5,27 +5,27 @@ import shapely
 #############################################
 
 # -> Distances
-def surface_distance(geomA , geomB) :
+def surface_distance(geomA , geomB):
+    """
+    Surface distance(A,B) = 1 - inter(A,B).area/union(A,B).area
+    
+    :param geomA: geometry A
+    :param geomB: geometry B
+    """
     inter = geomA.intersection(geomB)
-    # if no intersection, return 2
-    if inter == None : return 2
-    try:
-        union = shapely.union(geomA.buffer(0),geomB.buffer(0))
-    except shapely.errors.GEOSException:
-        return 1
-    # if no union, return 1
-    if union == None : return 1
+    union = shapely.union(geomA.buffer(0),geomB.buffer(0))
     return 1 - inter.area / union.area
 
 def get_accuracy(geomA, geomB):
     """
     accuracy(A,B) = surface(A inter B) / Surface (A)
     
-    :param geomA: Description
-    :param geomB: Description
+    :param geomA: geometry A
+    :param geomB: geometry B
     """
     inter = shapely.intersection(geomA , geomB)
-    if inter.is_empty is True : return 0
+    if inter.is_empty:
+        return 0
     return inter.area / geomA.area
     
 def get_completeness(geomA , geomB):
@@ -33,8 +33,8 @@ def get_completeness(geomA , geomB):
     completeness(A,B) = surface(A inter B) / Surface (B)
     completeness(A,B) = accuracy(B,A)
 
-    :param geomA: Description
-    :param geomB: Description
+    :param geomA: geometry A
+    :param geomB: geometry B
     """
     return get_accuracy(geomB, geomA)
 
@@ -43,9 +43,9 @@ def surface_match(ref, comp, param: dict):
     Match surfaces using the GMoA algoriithm.
     For more information, see in particular the PhD thesis of Atef Bel Hadj (2001).
     
-    :param ref: Description
-    :param comp: Description
-    :param param: Description
+    :param ref: ref features
+    :param comp: comp features
+    :param param: algorithm parameters
     :type param: dict
     """
     #TODO check consistency of all these methods: they don't return the same thing at the moment
@@ -161,9 +161,9 @@ def search_optimal_groups(preAppLiens, ref , comp , param):
         #on cherche à enlever toutes les combinaisons possibles d'arcs virables
         distSurfMin = 2
         distExacMax = 0
-        combinaisons = arcEnlevables
+        # combinaisons = arcEnlevables
         arcDuGroupeEnlevesFinal = []
-        comb = 0
+        # comb = 0
         
         #for j in range(len(arcEnlevables)):
         #    dist = mesureEvaluationGroupe(arcEnlevables[j], popRef, popComp, param)
@@ -244,7 +244,8 @@ def get_geom(indice,pop):
 def group_evaluation(groupe , popRef , popComp , param):
     if param["minimise_surface_distance"]:
         result = 2 
-    else : result = -1
+    else:
+        result = -1
     
     listRef = []
     listComp = []

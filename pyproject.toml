@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling >= 1.26"]
-build-backend = "hatchling.build"
+requires = ["uv_build >= 0.9.26, <0.10.0"]
+build-backend = "uv_build"
 
 [project]
 name = "pymatch"
@@ -18,9 +18,22 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
-license = "GPLv4"
+license = "GPL-3.0-or-later"
 license-files = ["LICEN[CS]E*"]
+dependencies = [
+    "bitarray>=3.8.0",
+    "geopandas>=1.0.1",
+    "typer>=0.21.1",
+]
 
 [project.urls]
 Homepage = "https://github.com/umrlastig/pymatch/"
 Issues = "https://github.com/umrlastig/pymatch/issues"
+
+[tool.uv.workspace]
+members = [
+    "pymatch",
+]
+
+[project.scripts]
+pymatch = "pymatch.match:app"

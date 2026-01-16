@@ -1,3 +1,9 @@
+# /// script
+# dependencies = [
+#   "typer"
+# ]
+# ///
+
 import typer
 from typing_extensions import Annotated
 from pathlib import Path
@@ -5,12 +11,11 @@ from enum import Enum
 from datetime import datetime
 import pandas as pd
 import geopandas as gpd
-import json
 import shapely
 from shapely import LineString
-from geometric_matching_of_areas import surface_match
-from multi_criteria import MCA, select_candidates
-from multi_criteria2 import MCA2
+from pymatch.geometric_matching_of_areas import surface_match
+from pymatch.multi_criteria import MCA, select_candidates
+from pymatch.multi_criteria2 import MCA2
 
 class MatchingAlgorithm(str, Enum):
     gmoa = "GMA"
@@ -52,7 +57,7 @@ def separate(popRef , popComp):
                 popRef4GMA.append(refIndex)
     return popRef.iloc[popRef4GMA], popRef.iloc[popRef4MCA]
 
-app = typer.Typer()
+app = typer.Typer(name="pymatch", help="Pymatch matches geographical features", add_completion=True)
 
 @app.command()
 def main(
@@ -103,43 +108,44 @@ def main(
         matches_2 = f(*p2)
         # reverse the indices for the second matches
         return matches_1 + list(map(lambda m:[m[1],m[0],m[2]],matches_2))
-    def match():
-        match algorithm:
-            case MatchingAlgorithm.gmoa:
-                return match_both_ways_or_not(match, (gpd1, gpd2, param), (gpd2, gpd1, param))
-            case MatchingAlgorithm.multi_criteria:
-                return match_both_ways_or_not(MCA, (gpd1, gpd2), (gpd2, gpd1))
-            case MatchingAlgorithm.multi:
-                def multi_match(ref, comp):
-                    popRef4GMA, popRef4MCA = separate(ref, comp)
-                    matches    = MCA(popRef4MCA, comp)
-                    # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
-                    # to do that, we use the name of the index (with .name) and get the index with get_loc
-                    matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
-                    matches_GMA = surface_match(popRef4GMA, comp, param)
-                    matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
-                    matches.extend(matches_GMA)
-                    return matches
-                return match_both_ways_or_not(multi_match, (gpd1, gpd2), (gpd2, gpd1))
-            case MatchingAlgorithm.multi_criteria2:
-                return match_both_ways_or_not(MCA2, (gpd1, gpd2), (gpd2, gpd1))
-            case MatchingAlgorithm.multi2:
-                def multi_match2(ref, comp):
-                    popRef4GMA, popRef4MCA = separate(ref, comp)
-                    matches    = MCA2(popRef4MCA, comp)
-                    # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
-                    # to do that, we use the name of the index (with .name) and get the index with get_loc
-                    matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
-                    matches_GMA = surface_match(popRef4GMA, comp, param)
-                    matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
-                    matches.extend(matches_GMA)
-                    return matches
-                return match_both_ways_or_not(multi_match2, (gpd1, gpd2), (gpd2, gpd1))
-            case _:
-                print('Unknown Algorithm')
-                return None
+    def do_match():
+        if algorithm == MatchingAlgorithm.gmoa:
+            return match_both_ways_or_not(surface_match, (gpd1, gpd2, param), (gpd2, gpd1, param))
+        elif algorithm == MatchingAlgorithm.multi_criteria:
+            return match_both_ways_or_not(MCA, (gpd1, gpd2), (gpd2, gpd1))
+        elif algorithm == MatchingAlgorithm.multi:
+            def multi_match(ref, comp):
+                popRef4GMA, popRef4MCA = separate(ref, comp)
+                matches    = MCA(popRef4MCA, comp)
+                # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
+                # to do that, we use the name of the index (with .name) and get the index with get_loc
+                matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
+                matches_GMA = surface_match(popRef4GMA, comp, param)
+                matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
+                matches.extend(matches_GMA)
+                return matches
+            return match_both_ways_or_not(multi_match, (gpd1, gpd2), (gpd2, gpd1))
+        elif algorithm == MatchingAlgorithm.multi_criteria2:
+            return match_both_ways_or_not(MCA2, (gpd1, gpd2), (gpd2, gpd1))
+        elif algorithm == MatchingAlgorithm.multi2:
+            def multi_match2(ref, comp):
+                popRef4GMA, popRef4MCA = separate(ref, comp)
+                matches    = MCA2(popRef4MCA, comp)
+                # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
+                # to do that, we use the name of the index (with .name) and get the index with get_loc
+                matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
+                matches_GMA = surface_match(popRef4GMA, comp, param)
+                matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
+                matches.extend(matches_GMA)
+                return matches
+            return match_both_ways_or_not(multi_match2, (gpd1, gpd2), (gpd2, gpd1))
+        return None
     # use unpacking to tranform a list((a,b,c)) into a list(a), list(b), list(c)
-    id1, id2, prob = zip(*match())
+    res_match = do_match()
+    if res_match is None:
+        print("Unknown algorithm")
+        return
+    id1, id2, prob = zip(*res_match)
     df = pd.DataFrame({'ID1': id1,'ID2': id2,'prob': prob})
     # remove duplicates (ignoring prob just in case)
     df = df.drop_duplicates(subset=['ID1', 'ID2'])
@@ -166,4 +172,5 @@ def main(
         print(datetime.now(),"All done")
 
 if __name__ == "__main__":
-    typer.run(main)
+    # typer.run(main)
+    app()

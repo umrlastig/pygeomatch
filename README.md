@@ -1,8 +1,14 @@
 # pymatch
 
-Python library for matching geospatial vector datasets
+Python library for matching geospatial vector datasets.
+For now, we only have surface matching algorithms but others will come soon.
 
-# TODO
+# installation
+
+
+# usage
+
+
 
 ## References
 

@@ -7,23 +7,26 @@ from itertools import groupby
 """""""""""""" """ MCA """ """"""""""""""""""
 #############################################
 
+
 def dempster(liste_critere):
     """
     Returns a decision.
-    
+
     :param liste_critere: a list of candidates' criteria
     """
     # ajout candidat non app
-    masseCan = [conjunctiveJoinRule(liste_critere[i]) for i in range(len(liste_critere))]
+    masseCan = [conjunctiveJoinRule(liste_critere[i])
+                for i in range(len(liste_critere))]
     # fusion candidat
     resultList, fusCandidat = candidateFusion(masseCan)
     # decision
     return decision(resultList, fusCandidat)
 
+
 def conjunctiveJoinRule(criteria):
     """
-    Smets' conjunctive join rule.
-    
+    Conjunctive join rule.
+
     :param criteria: a list of criteria
     """
     # print("criteria", criteria)
@@ -113,7 +116,7 @@ def conjunctiveJoinRule(criteria):
 def candidateFusion(candidates):
     """
     Fusion of candidates.
-    
+
     :param candidates: a list of combined masses for candidates
     """
     # print("candidates",candidates)
@@ -164,7 +167,7 @@ def candidateFusion(candidates):
 
     for k in range(len(candidates)-1):
 
-        (ligne, colone, matrice) = mat(k + 2)#, len(candidat))
+        (ligne, colone, matrice) = mat(k + 2)  # , len(candidat))
 
         listmodif = []
 
@@ -232,85 +235,75 @@ def candidateFusion(candidates):
     # print("result",result)
     return (resultList, result)
 
+
 def loi(x, y):
-
     # x = Cx , -Cx , theta , phi
-
     if x == y:
         return x
-
     if len(x) > 2:
         if x[0:3] == "phi":
             return "phi"
-
         if x[0:5] == "theta":
             if len(y) > 2 and y[0:3] == "phi":
                 return "phi"
             else:
                 return y
-
         if x[0] == 'C':
             if y[0] == 'C':
                 return "phi"
             if y[0] == '-':
                 return x
-
     if len(y) > 2:
         if y[0:3] == "phi":
             return "phi"
         if y[0:5] == "theta":
             return x
-
         if y[0] == 'C':
             if x[0] == 'C':
                 return "phi"
             if x[0] == '-':
                 return y
-
     if x[0] == "C":
-
         if y[0] == "C":
             if x[1] != y[1]:
                 return "phi"
-
         if y[0] == "-":
-
             if x[1] != y[2]:
                 return x
             elif len(x) == len(y) - 2:
                 return x
             else:
                 return "NA"
-
     if x[0] == "-":
-
         if y[0] == "C":
             if x[2] != y[1]:
                 return y
             else:
                 return "NA"
-
         if y[0] == "-":
             return "NA"
 
+
 def mat(index):
-    colone = ("C" + str(index), "-C" + str(index), "theta" + str(index), "phi" + str(index))
+    colone = ("C" + str(index), "-C" + str(index),
+              "theta" + str(index), "phi" + str(index))
     ligne = []
     for i in range(index-1):
         ligne.append("C"+str(i+1))
         ligne.append("-C"+str(i+1))
     ligne.append("theta" + str(1))
     ligne.append("phi" + str(1))
-    matrice = np.chararray((len(ligne), len(colone)), 5)
+    matrice = np.char.chararray((len(ligne), len(colone)), 5)
     for i in range(len(colone)):
         for j in range(len(ligne)):
             matrice[j][i] = loi(ligne[j], colone[i])
     return (ligne, colone, matrice)
 
+
 def decision(resultList, fusion):
     """
     Docstring for decision
-    
+
     :param resultList: Description
     :param fusion: Description
     """
@@ -374,20 +367,22 @@ def decision(resultList, fusion):
 
     return result
 
+
 def select_candidates(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame):
     """
     Identify candidates for ref features.
     It returns two lists:
     - a list of (index, geometry) from the ref geodataframe
     - a list of corresponding candidates (index, geometry) from the comp geodataframe
-    
+
     :param popRef: ref features
     :type popRef: gpd.GeoDataFrame
     :param popComp: comp features
     :type popComp: gpd.GeoDataFrame
     """
     # The first subarray contains input geometry integer indices. The second subarray contains tree geometry integer indices.
-    refIndices, compIndices = popComp["geometry"].sindex.query(popRef["geometry"], predicate="intersects")
+    refIndices, compIndices = popComp["geometry"].sindex.query(
+        popRef["geometry"], predicate="intersects")
     # # creation liste popRef
     # listeRef = [(idRef[refIndices[0]], geomRef[refIndices[0]])]
     # for i in range(len(refIndices)-1):
@@ -414,14 +409,15 @@ def select_candidates(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame):
     # print(refIndices)
     # group by the ref index (z[0]), map the results to dict entries with the ref index (y[0]) and keep only the second element of the grouped tuples (t[1])
     # ref, comp = zip(*list(map(lambda y: ((y[0], popRef.loc[y[0],"geometry"]), list(map(lambda t: (t[1], popComp.loc[t[1],"geometry"]), y[1]))), groupby(zipped, lambda z: z[0]))))
-    ref, comp = zip(*list(map(lambda y: ((y[0], popRef.iloc[[y[0]]].iloc[0]["geometry"]), list(map(lambda t: (t[1], popComp.iloc[[t[1]]].iloc[0]["geometry"]), y[1]))), groupby(zipped, lambda z: z[0]))))
+    ref, comp = zip(*list(map(lambda y: ((y[0], popRef.iloc[[y[0]]].iloc[0]["geometry"]), list(map(
+        lambda t: (t[1], popComp.iloc[[t[1]]].iloc[0]["geometry"]), y[1]))), groupby(zipped, lambda z: z[0]))))
     return (list(ref), list(comp))
 
 
 def processMatch(featureRef, listPopComp):
     """
     Process a feature and its candidates.
-    
+
     :param featureRef: a feature
     :param listPopComp: candidates
     """
@@ -465,15 +461,16 @@ def processMatch(featureRef, listPopComp):
         cs = tableau
         listCritere_i.append(ds)
         list_i.append(cs)
-        list_i.append(cs)# added twice
+        list_i.append(cs)  # added twice
         listCritere.append(list_i)
     lres = dempster(listCritere)
     return (listCritere_i, listCritere, lres)
 
+
 def MCA(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame):
     """
     Process Multi Criteria Matching.
-    
+
     :param popRef: Ref features
     :param popComp: Comp features
     """
@@ -484,7 +481,8 @@ def MCA(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame):
         # match ref feature i with its candidates
         # listPopRef[i] is refIndex, refGeometry
         (listCritere_i, _, liste) = processMatch(listPopRef[i], listPopComp[i])
-        if not((liste == "NA") | (liste == "theta")):
+        if not ((liste == "NA") | (liste == "theta")):
             decision = int(liste[1]) - 1
-            App.append((listPopRef[i][0], listPopComp[i][decision][0], listCritere_i[decision]))
+            App.append((listPopRef[i][0], listPopComp[i]
+                       [decision][0], listCritere_i[decision]))
     return App

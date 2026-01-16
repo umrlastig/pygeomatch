@@ -1,4 +1,3 @@
-import numpy as np
 import geopandas as gpd
 from itertools import groupby, chain
 from collections.abc import Callable
@@ -43,12 +42,13 @@ def get_potential_set(index: int, size: int, match: MCMatch) -> dict[bitarray,fl
 # note: the threshold might not be necessary for this example but it becomes useful for very large frames
 def combine(potentialSets: Iterable[dict[bitarray, float]], threshold: float = 0.00001):
     def combination2(potentialSet1: dict[bitarray, float],potentialSet2: dict[bitarray, float]):
-        # print(len(potentialSet1),len(potentialSet2))
         result = dict()
         for f1, v1 in potentialSet1.items():
             def add(dict, key, value):
-                if value>threshold: dict[key] = value if key not in dict else dict[key]+value
-            for f2, v2 in potentialSet2.items():add(result, f1&f2, v1*v2)
+                if value>threshold:
+                    dict[key] = value if key not in dict else dict[key]+value
+            for f2, v2 in potentialSet2.items():
+                add(result, f1&f2, v1*v2)
         return result
     return reduce(combination2, potentialSets)
 
@@ -70,7 +70,6 @@ def normalize(potentialSet: dict[bitarray, float]):
     setSize = len(next(iter(potentialSet)))
     theta = frozenbitarray(util.zeros(setSize))
     conflict = potentialSet.pop(theta,None)
-    # print("conflict",conflict)
     if conflict:
         return dict(map(lambda item: (item[0], item[1]/(1-conflict)), potentialSet.items()))
     return potentialSet
@@ -83,13 +82,13 @@ def pignistic_probability(potentialSet: dict[bitarray, float], threshold: float 
     """
     result = dict[bitarray, float]()
     for f1, v1 in potentialSet.items():
-        # print("prob",f1,v1)
         def add(dict: dict[bitarray, float], a_and_b: int, b: int, mass_b: float, key_b: bitarray):
             if util.subset(f1, key_b):
-                # print("with",key_b,"a&b",a_and_b,"b",b,"mass",mass_b)
                 v = mass_b * a_and_b / b
-                if v>threshold: dict[f1] = v if f1 not in dict else dict[f1]+v
-        for f2, v2 in potentialSet.items():add(result, util.count_and(f1,f2), f2.count(1), v2, f2)
+                if v>threshold:
+                    dict[f1] = v if f1 not in dict else dict[f1]+v
+        for f2, v2 in potentialSet.items():
+            add(result, util.count_and(f1,f2), f2.count(1), v2, f2)
     return result
 
 def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFrame, criteria: list[Callable[[dict,dict],MCMatch]]) -> tuple|None:
