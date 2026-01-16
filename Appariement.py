@@ -15,7 +15,7 @@ import pymatch
 def separate(popRef , popComp): 
     popRef4GMA = []
     popRef4MCA = []
-    listPopRef, listPopComp = pymatch.selectCandidates(popRef, popComp)
+    listPopRef, listPopComp = pymatch.select_candidates(popRef, popComp)
     for i in range(len(listPopRef)):
         refIndex, refGeometry = listPopRef[i]
         if len(listPopComp[i]) == 0:
@@ -120,7 +120,7 @@ def main__(workdirectory, ref, comp, consigne, output_file):
         # reverse the indices for the second matches
         return matches_1 + list(map(lambda m:[m[1],m[0],m[2]],matches_2))
     if consigne == 'GMA':
-        Appariement = match_both_ways(pymatch.appariementSurfaces, (gpd1, gpd2, param), (gpd2, gpd1, param))        
+        Appariement = match_both_ways(pymatch.match, (gpd1, gpd2, param), (gpd2, gpd1, param))        
     elif consigne == 'MCA':
         Appariement = match_both_ways(pymatch.MCA, (gpd1, gpd2), (gpd2, gpd1))
     elif consigne == 'Multi':
@@ -130,7 +130,7 @@ def main__(workdirectory, ref, comp, consigne, output_file):
             # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
             # to do that, we use the name of the index (with .name) and get the index with get_loc
             matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
-            matches_GMA = pymatch.appariementSurfaces(popRef4GMA, comp, param)
+            matches_GMA = pymatch.match(popRef4GMA, comp, param)
             matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
             matches.extend(matches_GMA)
             return matches
@@ -144,7 +144,7 @@ def main__(workdirectory, ref, comp, consigne, output_file):
             # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
             # to do that, we use the name of the index (with .name) and get the index with get_loc
             matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
-            matches_GMA = pymatch.appariementSurfaces(popRef4GMA, comp, param)
+            matches_GMA = pymatch.match(popRef4GMA, comp, param)
             matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
             matches.extend(matches_GMA)
             return matches

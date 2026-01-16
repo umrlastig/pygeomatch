@@ -8,8 +8,8 @@ import geopandas as gpd
 import json
 import shapely
 from shapely import LineString
-from geometric_matching_of_areas import appariementSurfaces
-from multi_criteria import MCA, selectCandidates
+from geometric_matching_of_areas import surface_match
+from multi_criteria import MCA, select_candidates
 from multi_criteria2 import MCA2
 
 class MatchingAlgorithm(str, Enum):
@@ -22,7 +22,7 @@ class MatchingAlgorithm(str, Enum):
 def separate(popRef , popComp): 
     popRef4GMA = []
     popRef4MCA = []
-    listPopRef, listPopComp = selectCandidates(popRef, popComp)
+    listPopRef, listPopComp = select_candidates(popRef, popComp)
     for i in range(len(listPopRef)):
         refIndex, refGeometry = listPopRef[i]
         if len(listPopComp[i]) == 0:
@@ -59,26 +59,37 @@ def main(
         file1: Annotated[Path, typer.Argument(help="File to use as reference")],
         file2: Annotated[Path, typer.Argument(help="File to use as comparison")],
         output_file: Annotated[Path, typer.Argument(help="File to save the results to")],
-        param_file: Annotated[Path, typer.Option(
-            exists=True,
-            file_okay=True,
-            dir_okay=False,
-            writable=False,
-            readable=True,
-            resolve_path=True,
-            help="Optional configuration file. Mandatory for GMoA and Multi.")] = Path("default_parameters.json"),
         algorithm: Annotated[MatchingAlgorithm, typer.Argument(help="The algorithm to use (GMA, MCA, Multi, MCA2, Multi2)")] = MatchingAlgorithm.multi_criteria,
-        export_input: Annotated[bool, typer.Option("--export",help="If true, export the input layers in the output file.")] = True
+        export_input: Annotated[bool, typer.Option("--export",help="If true, export the input layers in the output file.")] = True,
+        do_match_both_ways: Annotated[bool, typer.Option("--both/--no-both","-b/-B", help="If true, match the features both ways (A=>B and B=>A) and merge the results.")] = True,
+        min_surface_intersection:  Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 1.,
+        min_intersection_percentage: Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 0.1,
+        sure_intersection_percentage: Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 0.8,
+        minimise_surface_distance: Annotated[bool, typer.Option(help="min surface intersection between fetures to consider matching")] = True,
+        min_surface_distance: Annotated[float, typer.Option(min=0, help="min surface distance between fetures to consider matching in the final evaluation (only used if minimise_surface_distance is true)")] = 0.25,
+        min_accuracy_completeness: Annotated[float, typer.Option(min=0, help="min accuracy and completeness between fetures to consider matching in the final evaluation (only used if minimise_surface_distance is false)")] = 0.8,
+        use_optimal_groups: Annotated[bool, typer.Option(help="if true, searches for optimal groups")] = True,
+        final_filtering: Annotated[bool, typer.Option(help="if true, filter the final links using min_surface_distance or min_accuracy_completeness depending on minimise_surface_distance")] = True
+        # ajoutPetitesSurfaces: Annotated[bool, typer.Option(help="min surface intersection between fetures to consider matching")] = True,
+        # seuilPourcentageTaillePetitesSurfaces: Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 0.1
 ):
     print(datetime.now(),"Running",algorithm)
     # read using geopandas to reuse the dataframes in the export
     gpd1  = gpd.read_file(file1)
     gpd2  = gpd.read_file(file2)
-
-    with open(param_file, 'r') as file:
-        param = json.load(file)
-
-    def match_both_ways(f, p1, p2):
+    param = {
+        "min_surface_intersection": min_surface_intersection,
+        "min_intersection_percentage": min_intersection_percentage,
+        "sure_intersection_percentage": sure_intersection_percentage,
+        "minimise_surface_distance": minimise_surface_distance,
+        "min_surface_distance": min_surface_distance,
+        "min_accuracy_completeness": min_accuracy_completeness,
+        "use_optimal_groups": use_optimal_groups,
+        "final_filtering": final_filtering,
+        # "ajoutPetitesSurfaces": True,
+        # "seuilPourcentageTaillePetitesSurfaces": 0.1
+    }
+    def match_both_ways_or_not(f, p1, p2):
         """
         Use function f to match the features in both ways and return the merged result.
         
@@ -87,15 +98,17 @@ def main(
         :param p2: parameters for way 2
         """
         matches_1 = f(*p1)
+        if not do_match_both_ways:
+            return matches_1
         matches_2 = f(*p2)
         # reverse the indices for the second matches
         return matches_1 + list(map(lambda m:[m[1],m[0],m[2]],matches_2))
     def match():
         match algorithm:
             case MatchingAlgorithm.gmoa:
-                return match_both_ways(appariementSurfaces, (gpd1, gpd2, param), (gpd2, gpd1, param))
+                return match_both_ways_or_not(match, (gpd1, gpd2, param), (gpd2, gpd1, param))
             case MatchingAlgorithm.multi_criteria:
-                return match_both_ways(MCA, (gpd1, gpd2), (gpd2, gpd1))
+                return match_both_ways_or_not(MCA, (gpd1, gpd2), (gpd2, gpd1))
             case MatchingAlgorithm.multi:
                 def multi_match(ref, comp):
                     popRef4GMA, popRef4MCA = separate(ref, comp)
@@ -103,13 +116,13 @@ def main(
                     # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
                     # to do that, we use the name of the index (with .name) and get the index with get_loc
                     matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
-                    matches_GMA = appariementSurfaces(popRef4GMA, comp, param)
+                    matches_GMA = surface_match(popRef4GMA, comp, param)
                     matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
                     matches.extend(matches_GMA)
                     return matches
-                return match_both_ways(multi_match, (gpd1, gpd2), (gpd2, gpd1))
+                return match_both_ways_or_not(multi_match, (gpd1, gpd2), (gpd2, gpd1))
             case MatchingAlgorithm.multi_criteria2:
-                return match_both_ways(MCA2, (gpd1, gpd2), (gpd2, gpd1))
+                return match_both_ways_or_not(MCA2, (gpd1, gpd2), (gpd2, gpd1))
             case MatchingAlgorithm.multi2:
                 def multi_match2(ref, comp):
                     popRef4GMA, popRef4MCA = separate(ref, comp)
@@ -117,20 +130,17 @@ def main(
                     # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
                     # to do that, we use the name of the index (with .name) and get the index with get_loc
                     matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
-                    matches_GMA = appariementSurfaces(popRef4GMA, comp, param)
+                    matches_GMA = surface_match(popRef4GMA, comp, param)
                     matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
                     matches.extend(matches_GMA)
                     return matches
-                return match_both_ways(multi_match2, (gpd1, gpd2), (gpd2, gpd1))
+                return match_both_ways_or_not(multi_match2, (gpd1, gpd2), (gpd2, gpd1))
             case _:
                 print('Unknown Algorithm')
                 return None
+    # use unpacking to tranform a list((a,b,c)) into a list(a), list(b), list(c)
     id1, id2, prob = zip(*match())
-    df = pd.DataFrame({
-        'ID1': id1,#list(map(lambda m: m[0], matches)),
-        'ID2': id2,#list(map(lambda m: m[1], matches)),
-        'prob': prob,#list(map(lambda m: m[2], matches))
-    })
+    df = pd.DataFrame({'ID1': id1,'ID2': id2,'prob': prob})
     # remove duplicates (ignoring prob just in case)
     df = df.drop_duplicates(subset=['ID1', 'ID2'])
     def createLinkGeometry(match):

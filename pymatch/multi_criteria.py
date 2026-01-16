@@ -374,7 +374,7 @@ def decision(resultList, fusion):
 
     return result
 
-def selectCandidates(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame):
+def select_candidates(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame):
     """
     Identify candidates for ref features.
     It returns two lists:
@@ -478,7 +478,7 @@ def MCA(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame):
     :param popComp: Comp features
     """
     # get the list of ref objects and their corresponding candidates
-    listPopRef, listPopComp = selectCandidates(popRef, popComp)
+    listPopRef, listPopComp = select_candidates(popRef, popComp)
     App = []
     for i in range(len(listPopRef)):
         # match ref feature i with its candidates
