@@ -11,11 +11,11 @@ from enum import Enum
 from datetime import datetime
 import pandas as pd
 import geopandas as gpd
-import shapely
 from shapely import LineString
 from pymatch.geometric_matching_of_areas import surface_match
 from pymatch.multi_criteria import MCA, select_candidates
 from pymatch.multi_criteria2 import MCA2
+from pymatch.util import surface_distance
 
 class MatchingAlgorithm(str, Enum):
     gmoa = "GMA"
@@ -24,7 +24,15 @@ class MatchingAlgorithm(str, Enum):
     multi_criteria2 = "MCA2"
     multi2 = "Multi2"
 
-def separate(popRef , popComp): 
+def separate(popRef , popComp) -> tuple[gpd.GeoDataFrame,gpd.GeoDataFrame]: 
+    """
+    Separates the data for the Multi algorithm.
+    
+    :param popRef: reference dataset
+    :param popComp: comparison dataset
+    :return: the reference dataset split into 2 datasets
+    :rtype: tuple[GeoDataFrame, GeoDataFrame]
+    """
     popRef4GMA = []
     popRef4MCA = []
     listPopRef, listPopComp = select_candidates(popRef, popComp)
@@ -35,22 +43,7 @@ def separate(popRef , popComp):
             popRef4MCA.append(refIndex)
         else:
             def condition(comp):
-                geomRef = refGeometry.buffer(0)
-                geomComp = comp[1].buffer(0)
-                inter = shapely.intersection(geomRef , geomComp)
-                union = shapely.union(geomRef,geomComp)
-                ds =  1 - inter.area /union.area 
-                return ds < 0.7
-            # a = 0
-            # for j in range(len(listPopComp[i])) : 
-            #     geomRef = listPopRef[i][1].buffer(0)
-            #     geomComp = listPopComp[i][j][1].buffer(0)
-            #     inter = shapely.intersection(geomRef , geomComp)
-            #     union = shapely.union(geomRef,geomComp)
-            #     ds =  1 - inter.area /union.area 
-            #     if ds < 0.7 : a = 1
-            # if a == 1 : popRef4MCA.append(listPopRef[i][0])
-            # else : popRef4GMA.append(listPopRef[i][0])
+                return surface_distance(refGeometry, comp[1]) < 0.7
             if any(condition(c) for c in listPopComp[i]):
                 popRef4MCA.append(refIndex)
             else:

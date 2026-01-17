@@ -1,20 +1,10 @@
 import numpy as np
 import shapely
+import geopandas
+from pymatch.util import surface_distance
 
 """""""""""""" """ GMA """ """"""""""""""""""
 #############################################
-
-# -> Distances
-def surface_distance(geomA , geomB):
-    """
-    Surface distance(A,B) = 1 - inter(A,B).area/union(A,B).area
-    
-    :param geomA: geometry A
-    :param geomB: geometry B
-    """
-    inter = geomA.intersection(geomB)
-    union = shapely.union(geomA.buffer(0),geomB.buffer(0))
-    return 1 - inter.area / union.area
 
 def get_accuracy(geomA, geomB):
     """
@@ -143,10 +133,8 @@ def search_optimal_groups(preAppLiens, ref , comp , param):
             continue 
         # pour les groupes n-m on va essayer d'enlever des arcs 
         # mais on garde à coup sûr les liens avec suffisament de recouvrement
-    
         arcNonEnlevables = []
-        arcEnlevables    = []
-        
+        arcEnlevables    = []        
         for j in range(len(groupesConnexes[i])):
             if groupesConnexes[i][j][2] > param["sure_intersection_percentage"]:
                 arcNonEnlevables.append(groupesConnexes[i][j])
@@ -156,8 +144,6 @@ def search_optimal_groups(preAppLiens, ref , comp , param):
         if len(arcNonEnlevables) == len(groupesConnexes[i]) : # si on ne peut rien enlever on s'arrête la 
             groupesGardes.append(groupesConnexes[i])
             continue 
-        
-        
         #on cherche à enlever toutes les combinaisons possibles d'arcs virables
         distSurfMin = 2
         distExacMax = 0
@@ -218,65 +204,57 @@ def search_optimal_groups(preAppLiens, ref , comp , param):
             L.append(groupesGardes[k][0])
             
     return L
+
+def get_geom(index,dataframe):
+    """
+    Returns the geometry for the given index in the input dataframe.
     
-def list_union(liste,pop):
+    :param index: Description
+    :param pop: Description
+    """
+    return dataframe.iloc[[index]].iloc[0]['geometry']
+
+def list_union(list: list[int], gdf: geopandas.GeoDataFrame):
+    """
+    Returns the geometric union of the features with the given indices.
+    
+    :param list: a list of indices
+    :param dataframe: a geodataframe
+    """
     try:
-        list = [get_geom(liste[k],pop).buffer(0) for k in range(0, len(liste))]
-        return shapely.union_all(list)
+        geom_list = [get_geom(list[k],gdf).buffer(0) for k in range(0, len(list))]
+        return shapely.union_all(geom_list)
     except shapely.errors.GEOSException:
         print("union list error with\n",list)
         return None
-    # union = getGeom(liste[0],pop)
-    # for k in range(1, len(liste)):
-    #     try:
-    #         union = shapely.union(union , getGeom(liste[k],pop))
-    #     except shapely.errors.GEOSException:
-    #         print("union list error with\n", union, "\n",getGeom(liste[k],pop))
-
-    # return union
-
-def get_geom(indice,pop):
-    # return pop.loc[indice,'geometry']
-    return pop.iloc[[indice]].iloc[0]['geometry']
 
 # Il me semble qu'on ajoute la zone petite à la zone plus grande pour en 
 # faire une nouvelle entité 
-def group_evaluation(groupe , popRef , popComp , param):
+def group_evaluation(group , popRef , popComp , param):
+    """
+    Docstring for group_evaluation
+    
+    :param group: Description
+    :param popRef: Description
+    :param popComp: Description
+    :param param: Description
+    """
     if param["minimise_surface_distance"]:
         result = 2 
     else:
         result = -1
-    
     listRef = []
     listComp = []
-
-    for j in range(len(groupe)):
-        listRef.append(groupe[j][0])
-        listComp.append(groupe[j][1])
-    unionRef  = list_union(listRef,popRef)  
+    for j in range(len(group)):
+        listRef.append(group[j][0])
+        listComp.append(group[j][1])
+    unionRef  = list_union(listRef,popRef)
     unionComp = list_union(listComp,popComp)
-        
-    #if len(groupe) == 3 : # A changer si on change le nombre dans groupe 
-    #    unionRef  = popRef[groupe[0]]["geometry"]
-    #    unionComp = popComp[groupe[1]]["geometry"]
-
-    #else :
-    #    for j in range(len(groupe)):
-    #        print("groupe =", groupe)
-    #        listRef.append(groupe[j][0])
-    #        listComp.append(groupe[j][1])
-    #    unionRef  = unionListe(listRef,popRef)  
-    #    unionComp = unionListe(listComp,popComp) 
-        
-        
-    geomRef = unionRef # peut etre que il y a un pb de type 
-    geomComp = unionComp
-
-    #on combine les mesures des parties connexes 
+    # on combine les mesures des parties connexes 
     if param["minimise_surface_distance"]:
-        value= surface_distance(geomRef, geomComp)
+        value= surface_distance(unionRef, unionComp)
         return min(value, result)
-    value = get_accuracy(geomRef , geomComp) + get_completeness(geomRef , geomComp)
+    value = get_accuracy(unionRef , unionComp) + get_completeness(unionRef , unionComp)
     return max(value, result)       
 
 def filter_links(grouped_links, param, ref, comp):

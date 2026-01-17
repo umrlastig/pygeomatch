@@ -5,8 +5,8 @@ from bitarray import frozenbitarray, util, bitarray
 from typing import Iterable, Union
 from functools import partial, reduce
 from operator import mul, itemgetter
-import shapely
 from shapely.geometry import shape
+from pymatch.util import surface_distance
 class MCMatch:
     def __init__(self, matched, not_matched, theta):
         self.matched = matched
@@ -30,17 +30,46 @@ def select_candidates(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame) -> dict[int
     return dict(map(lambda y: (y[0], list(map(lambda t: t[1], y[1]))), groupby(zipped, lambda z: z[0])))
 
 def get_matched_array(index, size) -> frozenbitarray:
+    """
+    Docstring for get_matched_array
+    
+    :param index: Description
+    :param size: Description
+    :return: Description
+    :rtype: frozenbitarray
+    """
     matched = util.zeros(size)
     matched.invert(index)
     return frozenbitarray(matched)
 
 def get_potential_set(index: int, size: int, match: MCMatch) -> dict[bitarray,float]:
+    """
+    Get the masses for the hypotheses.
+    
+    :param index: Index of a feature
+    :type index: int
+    :param size: number of candidates
+    :type size: int
+    :param match: the match values
+    :type match: MCMatch
+    :return: a dictionay with the masses for the matched, not matched and ignorance hypotheses
+    :rtype: dict[bitarray, float]
+    """
     matched = get_matched_array(index, size)
     theta = frozenbitarray(util.ones(size)) #ignorance
     return dict({matched: match.matched, frozenbitarray(~matched): match.not_matched, theta: match.theta})
 
-# note: the threshold might not be necessary for this example but it becomes useful for very large frames
 def combine(potentialSets: Iterable[dict[bitarray, float]], threshold: float = 0.00001):
+    """
+    Combine the potential sets.
+
+    note: the threshold might not be necessary for this example but it becomes useful for very large frames
+    
+    :param potentialSets: Description
+    :type potentialSets: Iterable[dict[bitarray, float]]
+    :param threshold: Description
+    :type threshold: float
+    """
     def combination2(potentialSet1: dict[bitarray, float],potentialSet2: dict[bitarray, float]):
         result = dict()
         for f1, v1 in potentialSet1.items():
@@ -52,8 +81,16 @@ def combine(potentialSets: Iterable[dict[bitarray, float]], threshold: float = 0
         return result
     return reduce(combination2, potentialSets)
 
-# a purely functional version
 def combination_func(potentialSets, threshold: float = 0.00001):
+    """
+    Combine the potential sets (a purely functional version).
+
+    note: the threshold might not be necessary for this example but it becomes useful for very large frames
+    
+    :param potentialSets: Description
+    :param threshold: Description
+    :type threshold: float
+    """
     def combination_func2(p1,p2):
         def comb(p,x): return map(lambda y: (x[0]&y[0],x[1]*y[1]), p)
         return dict(map(lambda z: (z[0], sum(map(lambda h: h[1], z[1]))), 
@@ -92,57 +129,60 @@ def pignistic_probability(potentialSet: dict[bitarray, float], threshold: float 
     return result
 
 def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFrame, criteria: list[Callable[[dict,dict],MCMatch]]) -> Union[tuple,None]:
-    # print("refFeature",type(refFeature),refFeature["geometry"])
-    # print(len(compFeatures),"candidates")
+    """
+    Docstring for process_match
+    
+    :param refIndex: Description
+    :type refIndex: int
+    :param refFeature: Description
+    :type refFeature: dict
+    :param compFeatures: Description
+    :type compFeatures: gpd.GeoDataFrame
+    :param criteria: Description
+    :type criteria: list[Callable[[dict, dict], MCMatch]]
+    :return: Description
+    :rtype: tuple[Any, ...] | None
+    """
     candidates = len(compFeatures) + 1 # +1 since we'll add the 'not matched' candidate
     theta = frozenbitarray(util.ones(candidates)) #ignorance
     #phi = frozenbitarray(util.zeros(candidates)) # conflict
-    # we combine the criteria for all candidates
-    potentialSets = [combine(list(map(lambda c: get_potential_set(i, candidates, c(refFeature, f)),criteria))) for i, f in enumerate(compFeatures.iterfeatures())]
-    #flatPotentialSets = list(chain.from_iterable(potentialSets))
-    # print("potentialSets",potentialSets)
-    # combine and normalise the potential sets
-    # fusion = normalize(combine(potentialSets))
-    # print("fusion",fusion)
+    # we combine the criteria for all the candidates
+    potentialSets = [combine(list(map(lambda c: get_potential_set(i, candidates, c(refFeature, f)), criteria))) for i, f in enumerate(compFeatures.iterfeatures())]
     # adding the not_matched hypothesis
     not_matched = get_matched_array(candidates-1, candidates)
     # the list of not_matched from other hypotheses
-    #flatPotentialSets.append({not_matched:0})
     def getOrZero(index, candidates, fusion):
         if ~get_matched_array(index, candidates) in fusion:
             return fusion[~get_matched_array(index, candidates)]
         return 0.
     masses = [getOrZero(index, candidates, potentialSets) for index in range(candidates-1)]
+    # we multiply all the masses to get the mass for the not_matched hypothesis
     mass = reduce(mul, masses, 1)
     # add a source with the not_matched hypothesis
     potentialSets.append({not_matched:mass, theta: 1-mass})
-    # fusion[not_matched] = mass
     final = normalize(combine(potentialSets))
-    #print("final",final)
     pignistic = pignistic_probability(final)
-    #print("pignistic",pignistic)
     maxPignistic, maxPignisticProbability = max(pignistic.items(), key=itemgetter(1))
-    #print("max",maxPignistic)
     # if the max is not a simple hypothesis or is the 'not_matched' hypothesis
     if maxPignistic.count(1) > 1 | (maxPignistic == not_matched):
         return None
     index = maxPignistic.find(1)
-    # FIXME this is kinda ugly
-    #choice = list(compFeatures.iterfeatures())[index]
-    # compIndex = compFeatures.index.get_loc(compFeatures.iloc[index].name)
-    # print("maxPignistic",maxPignistic,maxPignistic.find(1))
-    # print("index",index,compFeatures.iloc[index].name,compIndex)
-    # print(list(compFeatures.iterfeatures())[index])
     return (refIndex, compFeatures.iloc[index].name, maxPignisticProbability)
 
 def geom_criteria(a: dict, b: dict) -> MCMatch:
-    # print(shape(a["geometry"]))
-    # print(shape(b["geometry"]))
+    """
+    A simple geometric criteria using the surface geometry.
+    
+    :param a: Description
+    :type a: dict
+    :param b: Description
+    :type b: dict
+    :return: Description
+    :rtype: MCMatch
+    """
     geom_a = shape(a["geometry"]).buffer(0)
     geom_b = shape(b["geometry"]).buffer(0)
-    inter = shapely.intersection(geom_a, geom_b)
-    union = shapely.union(geom_a, geom_b)
-    distance = 1 - inter.area / union.area
+    distance = surface_distance(geom_a, geom_b)
     T1 = 0.90
     T2 = 1.0
     E = 0.01
@@ -159,14 +199,15 @@ def geom_criteria(a: dict, b: dict) -> MCMatch:
         _app = K
     return MCMatch(app ,_app, 1 - app - _app)
 
-def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame)->list:
+def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteria])->list:
     """
     Process Multi Criteria Matching.
     
     :param ref: Ref features
     :param comp: Comp features
+    :param criteria: a list of criteria to compare features
     """
     # get the ref features and their corresponding candidates (if they have any)
     candidateDictionary = select_candidates(ref, comp)
-    results = [process_match(k, next(ref.iloc[[k]].iterfeatures()), comp.iloc[v], [geom_criteria]) for k,v in candidateDictionary.items()] # type: ignore
+    results = [process_match(k, next(ref.iloc[[k]].iterfeatures()), comp.iloc[v], criteria) for k,v in candidateDictionary.items()] # type: ignore
     return [(result[0], comp.index.get_loc(result[1]),result[2]) for result in results if result is not None]
