@@ -2,7 +2,7 @@ import geopandas as gpd
 from itertools import groupby, chain
 from collections.abc import Callable
 from bitarray import frozenbitarray, util, bitarray
-from typing import Iterable
+from typing import Iterable, Union
 from functools import partial, reduce
 from operator import mul, itemgetter
 import shapely
@@ -15,7 +15,7 @@ class MCMatch:
     def __repr__(self):
         return "MCMatch(%s,%s,%s)" % (self.matched, self.not_matched, self.theta)
 
-def select_candidates(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame):
+def select_candidates(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame) -> dict[int, list[int]]:
     """
     Identify candidates for ref features.
     
@@ -91,7 +91,7 @@ def pignistic_probability(potentialSet: dict[bitarray, float], threshold: float 
             add(result, util.count_and(f1,f2), f2.count(1), v2, f2)
     return result
 
-def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFrame, criteria: list[Callable[[dict,dict],MCMatch]]) -> tuple|None:
+def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFrame, criteria: list[Callable[[dict,dict],MCMatch]]) -> Union[tuple,None]:
     # print("refFeature",type(refFeature),refFeature["geometry"])
     # print(len(compFeatures),"candidates")
     candidates = len(compFeatures) + 1 # +1 since we'll add the 'not matched' candidate
@@ -168,5 +168,5 @@ def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame)->list:
     """
     # get the ref features and their corresponding candidates (if they have any)
     candidateDictionary = select_candidates(ref, comp)
-    results = [process_match(k, next(ref.iloc[[k]].iterfeatures()), comp.iloc[v], [geom_criteria]) for k,v in candidateDictionary.items()]
+    results = [process_match(k, next(ref.iloc[[k]].iterfeatures()), comp.iloc[v], [geom_criteria]) for k,v in candidateDictionary.items()] # type: ignore
     return [(result[0], comp.index.get_loc(result[1]),result[2]) for result in results if result is not None]
