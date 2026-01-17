@@ -5,10 +5,36 @@ For now, we only have surface matching algorithms but others will come soon.
 
 # installation
 
+## from source
+
+```shell
+git clone git@github.com:umrlastig/pymatch.git
+cd pymatch
+```
+
+[Install uv](https://docs.astral.sh/uv/getting-started/installation/#installation-methods)
+
+Install dependencies:
+```shell
+uv sync
+```
+
+```shell
+source .venv/bin/activate
+```
 
 # usage
 
+You can now use the *pymatch* script to match your data.
+You can see the different parameters with:
+```shell
+pymatch --help
+```
 
+For instance, with the test data in directory *data* using the *MCA* algorithm and saving the results in *test.gpkg*, you can use the following:
+```shell
+pymatch data/popRef.shp data/popComp.shp test.gpkg MCA
+```
 
 ## References
 
