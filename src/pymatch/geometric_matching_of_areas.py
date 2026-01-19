@@ -2,6 +2,7 @@ import numpy as np
 import shapely
 import geopandas
 from pymatch.util import surface_distance
+from more_itertools import partition
 
 """""""""""""" """ GMA """ """"""""""""""""""
 #############################################
@@ -96,121 +97,80 @@ def pre_match(ref, comp, param ):
     return list(map(map_outputs, filter(filter_links, links)))
 
 
-def search_optimal_groups(preAppLiens, ref , comp , param):
+def search_optimal_groups(pre_match_links, ref , comp , param):
     """
     On recherche les regroupements optimaux de liens de pré-traitement, pour maximiser la distance surfacique entre les groupes de référence et de comparaison .
     NB l'appariement est symétrique 
     Returns the links (liens d'appariement calculés)
     
-    :param preAppLiens: liens issus du pré-appariement 
-    :param ref: Description
-    :param comp: Description
-    :param param: paramètres de l'appariement 
+    :param pre_match_links: links from the pre matching step
+    :param ref: reference dataset
+    :param comp: comparison dataset
+    :param param: algorithm parameters
     """
-    
-    matrice = np.zeros((len(ref), len(comp)))
-    for k in range(len(preAppLiens)):
-        matrice[preAppLiens[k][0]][preAppLiens[k][1]] = preAppLiens[k][2]
-    
-    groupesGardes = []
-    
+    matrix = np.zeros((len(ref), len(comp)))
+    for k in range(len(pre_match_links)):
+        matrix[pre_match_links[k][0]][pre_match_links[k][1]] = pre_match_links[k][2]
+    groups_to_keep = []
     #on parcrous touts les liens n-m créés
-    groupesConnexes = []
+    connected_groups = []
     for i  in range(len(ref)):
-        groupes = []
-        for j in range(len(comp)): 
-            if matrice[i][j] > 0 : 
-                groupes.append((i,j,matrice[i][j]))
-        
-        if len(groupes) != 0 : 
-            groupesConnexes.append(groupes)
-            
-    
-    for i in range(len(groupesConnexes)):
+        groups = [(i,j,matrix[i][j]) for j in range(len(comp)) if matrix[i][j] > 0]
+        if len(groups) != 0:
+            connected_groups.append(groups)
+    for i in range(len(connected_groups)):
         # pour tous les objets isolés ou les liens 1-1, on ne fait rien de plus 
-        if len(groupesConnexes[i]) == 1 : 
-            groupesGardes.append(groupesConnexes[i])
+        if len(connected_groups[i]) == 1 : 
+            groups_to_keep.append(connected_groups[i])
             continue 
         # pour les groupes n-m on va essayer d'enlever des arcs 
         # mais on garde à coup sûr les liens avec suffisament de recouvrement
-        arcNonEnlevables = []
-        arcEnlevables    = []        
-        for j in range(len(groupesConnexes[i])):
-            if groupesConnexes[i][j][2] > param["sure_intersection_percentage"]:
-                arcNonEnlevables.append(groupesConnexes[i][j])
-            else :
-                arcEnlevables.append(groupesConnexes[i][j])
-                
-        if len(arcNonEnlevables) == len(groupesConnexes[i]) : # si on ne peut rien enlever on s'arrête la 
-            groupesGardes.append(groupesConnexes[i])
+        # The first yields the items that have intersection <= param["sure_intersection_percentage"]. 
+        # The second yields the items that have intersection > param["sure_intersection_percentage"].
+        removable, not_removable = partition(lambda x: x[2] > param["sure_intersection_percentage"], connected_groups[i])
+        # converts to lists
+        removable = list(removable)
+        not_removable = list(not_removable)
+        if len(not_removable) == len(connected_groups[i]) : # si on ne peut rien enlever on s'arrête la 
+            groups_to_keep.append(connected_groups[i])
             continue 
         #on cherche à enlever toutes les combinaisons possibles d'arcs virables
         distSurfMin = 2
         distExacMax = 0
-        # combinaisons = arcEnlevables
-        arcDuGroupeEnlevesFinal = []
-        # comb = 0
-        
-        #for j in range(len(arcEnlevables)):
-        #    dist = mesureEvaluationGroupe(arcEnlevables[j], popRef, popComp, param)
-        #    if param["minimise_surface_distance"]:
-        #        if dist < distSurfMin :
-        #            distSurfMin = dist 
-        #            arcDuGroupeEnlevesFinal.append(arcEnlevables[j])
-        #    else :
-        #        if dist > distExacMax : 
-        #            distExacMax = dist 
-        #            arcDuGroupeEnlevesFinal.append(arcEnlevables[j])
-        
-        dist = group_evaluation(arcEnlevables, ref, comp, param)
+        to_remove = []                
+        dist = group_evaluation(removable, ref, comp, param)
         if param["minimise_surface_distance"]:
             if dist < distSurfMin :
                 distSurfMin = dist  # gros problemes de logique 
-                arcDuGroupeEnlevesFinal.append(arcEnlevables)
+                to_remove.append(removable)
         else :
             if dist > distExacMax : 
                 distExacMax = dist 
-                arcDuGroupeEnlevesFinal.append(arcEnlevables)
-        
-        #groupesPreGardes = []
-        #for j in range(len(groupesConnexes[i])):
-        #    compteur = 0 
-        #    if (len(arcDuGroupeEnlevesFinal)) == 0 : 
-        #        continue 
-        #    for k in range(len(arcDuGroupeEnlevesFinal[0])):
-        #        if groupesConnexes[i][j] == arcDuGroupeEnlevesFinal[0][k]:
-        #            compteur = 1
-        #    if compteur == 0 :
-         #       groupesPreGardes.append(groupesConnexes[i][j])
-         #groupesGardes.append(GroupesPRegardes)
-        
-        if (len(arcDuGroupeEnlevesFinal)) == 0 : 
+                to_remove.append(removable)
+        if (len(to_remove)) == 0 : 
             continue 
         else : 
-            for k in range(len(arcDuGroupeEnlevesFinal[0])):
-                groupesConnexes[i].remove(arcDuGroupeEnlevesFinal[0][k])
-                    
-            groupesGardes.append(groupesConnexes[i])
-    
+            for k in range(len(to_remove[0])):
+                connected_groups[i].remove(to_remove[0][k])                    
+            groups_to_keep.append(connected_groups[i])
     L = []
-    for k in range(len(groupesGardes)):
-        
-        if len(groupesGardes[k]) == 2 : 
-            L.append(groupesGardes[k][0])
-            L.append(groupesGardes[k][1])
-        elif len(groupesGardes[k]) == 0 : 
+    for k in range(len(groups_to_keep)):
+        print(k,groups_to_keep[k])
+        if len(groups_to_keep[k]) == 2 : 
+            L.append(groups_to_keep[k][0])
+            L.append(groups_to_keep[k][1])
+        elif len(groups_to_keep[k]) == 0 : 
             continue
         else : 
-            L.append(groupesGardes[k][0])
-            
+            L.append(groups_to_keep[k][0])
     return L
 
-def get_geom(index,dataframe):
+def get_geom(index, dataframe):
     """
     Returns the geometry for the given index in the input dataframe.
     
-    :param index: Description
-    :param pop: Description
+    :param index: index of the feature
+    :param dataframe: a geodataframe
     """
     return dataframe.iloc[[index]].iloc[0]['geometry']
 
@@ -230,32 +190,23 @@ def list_union(list: list[int], gdf: geopandas.GeoDataFrame):
 
 # Il me semble qu'on ajoute la zone petite à la zone plus grande pour en 
 # faire une nouvelle entité 
-def group_evaluation(group , popRef , popComp , param):
+def group_evaluation(group , ref , comp , param):
     """
-    Docstring for group_evaluation
+    Combine the measures of the group.
     
-    :param group: Description
-    :param popRef: Description
-    :param popComp: Description
-    :param param: Description
+    :param group: a group of links
+    :param ref: reference dataset
+    :param comp: comparison dataset
+    :param param: algorithm parameters
     """
+    # create the list of ref and comp from the input links
+    l_ref, l_comp = zip(*[[g[0],g[1]] for g in group])
+    unionRef  = list_union(list(l_ref), ref)
+    unionComp = list_union(list(l_comp), comp)
+    # combine the measures of the group
     if param["minimise_surface_distance"]:
-        result = 2 
-    else:
-        result = -1
-    listRef = []
-    listComp = []
-    for j in range(len(group)):
-        listRef.append(group[j][0])
-        listComp.append(group[j][1])
-    unionRef  = list_union(listRef,popRef)
-    unionComp = list_union(listComp,popComp)
-    # on combine les mesures des parties connexes 
-    if param["minimise_surface_distance"]:
-        value= surface_distance(unionRef, unionComp)
-        return min(value, result)
-    value = get_accuracy(unionRef , unionComp) + get_completeness(unionRef , unionComp)
-    return max(value, result)       
+        return min(surface_distance(unionRef, unionComp), 2)
+    return max(get_accuracy(unionRef , unionComp) + get_completeness(unionRef , unionComp), -1)
 
 def filter_links(grouped_links, param, ref, comp):
     """
@@ -263,26 +214,27 @@ def filter_links(grouped_links, param, ref, comp):
     TODO check the modification of the "else" indentation level.
 
     :param grouped_links: Description
-    :param param: Description
-    :param ref: Description
-    :param comp: Description
+    :param param: algorithm parameters
+    :param ref: reference dataset
+    :param comp: comparison dataset
     """
     filtered_links = []
     for i in range(len(grouped_links)):
-        lien = []
+        link = []
         if param["minimise_surface_distance"] : 
             distSurf = grouped_links[i][2]
+            print("distSurf",distSurf)
             if distSurf < param["min_surface_distance"]:
-                lien.append(grouped_links[i][0])
-                lien.append(grouped_links[i][1])
-                lien.append(distSurf)
+                link.append(grouped_links[i][0])
+                link.append(grouped_links[i][1])
+                link.append(distSurf)
         else:
             accuracy = get_accuracy(get_geom(grouped_links[i][0],ref).buffer(0), get_geom(grouped_links[i][1],comp).buffer(0) )
             completeness = get_completeness(get_geom(grouped_links[i][0],ref).buffer(0), get_geom(grouped_links[i][1],comp).buffer(0) )
-            if accuracy > param["min_accuracy_completeness"] and completeness > param["min_accuracy_completeness"]: 
-                lien.append(grouped_links[i][0])
-                lien.append(grouped_links[i][1])
-                lien.append(accuracy + completeness)
-        if len(lien) != 0 :
-            filtered_links.append(lien)
+            if (accuracy > param["min_accuracy_completeness"]) and (completeness > param["min_accuracy_completeness"]):
+                link.append(grouped_links[i][0])
+                link.append(grouped_links[i][1])
+                link.append(accuracy + completeness)
+        if len(link) != 0 :
+            filtered_links.append(link)
     return filtered_links 

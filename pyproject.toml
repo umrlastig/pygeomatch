@@ -23,6 +23,7 @@ license-files = ["LICEN[CS]E*"]
 dependencies = [
     "bitarray>=3.8.0",
     "geopandas>=1.0.1",
+    "more-itertools>=10.8.0",
     "typer>=0.21.1",
 ]
 
