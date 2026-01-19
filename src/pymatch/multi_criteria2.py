@@ -148,23 +148,36 @@ def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFram
     #phi = frozenbitarray(util.zeros(candidates)) # conflict
     # we combine the criteria for all the candidates
     potentialSets = [combine(list(map(lambda c: get_potential_set(i, candidates, c(refFeature, f)), criteria))) for i, f in enumerate(compFeatures.iterfeatures())]
+    fusion_of_criteria = combine(potentialSets)
     # adding the not_matched hypothesis
     not_matched = get_matched_array(candidates-1, candidates)
     # the list of not_matched from other hypotheses
-    def getOrZero(index, candidates, fusion):
-        if ~get_matched_array(index, candidates) in fusion:
-            return fusion[~get_matched_array(index, candidates)]
-        return 0.
-    masses = [getOrZero(index, candidates, potentialSets) for index in range(candidates-1)]
+    # def getOrZero(index, candidates, fusion):
+    #     if ~get_matched_array(index, candidates) in fusion:
+    #         return fusion[~get_matched_array(index, candidates)]
+    #     return 0.
+    # create all the not matched hypotheses (except for the not_matched one)
+    all_not_matched_hypotheses = [~get_matched_array(index, candidates) for index in range(candidates-1)]
+    for h in all_not_matched_hypotheses:
+        print("hyp",h)
+    if all([c in fusion_of_criteria for c in all_not_matched_hypotheses]):
+        all_not_matched_hypotheses_masses = [fusion_of_criteria[c] for c in all_not_matched_hypotheses]
+        for m in all_not_matched_hypotheses_masses:
+            print("masses",m)
+        mass = reduce(mul, all_not_matched_hypotheses_masses, 1)
+    else:
+        mass = 0.0
+    print("na_mass",mass)
+    # masses = [getOrZero(index, candidates, potentialSets) for index in range(candidates-1)]
     # we multiply all the masses to get the mass for the not_matched hypothesis
-    mass = reduce(mul, masses, 1)
+    # mass = reduce(mul, masses, 1)
     # add a source with the not_matched hypothesis
-    potentialSets.append({not_matched:mass, theta: 1-mass})
-    final = normalize(combine(potentialSets))
-    pignistic = pignistic_probability(final)
+    # potentialSets.append({not_matched:mass, theta: 1-mass})
+    fusion_of_candidates = normalize(combine([fusion_of_criteria, {not_matched:mass, theta: 1-mass}]))
+    pignistic = pignistic_probability(fusion_of_candidates)
     maxPignistic, maxPignisticProbability = max(pignistic.items(), key=itemgetter(1))
     # if the max is not a simple hypothesis or is the 'not_matched' hypothesis
-    if maxPignistic.count(1) > 1 | (maxPignistic == not_matched):
+    if (maxPignistic.count(1) > 1) | (maxPignistic == not_matched):
         return None
     index = maxPignistic.find(1)
     return (refIndex, compFeatures.iloc[index].name, maxPignisticProbability)
@@ -180,19 +193,18 @@ def geom_criteria(a: dict, b: dict) -> MCMatch:
     :return: Description
     :rtype: MCMatch
     """
-    geom_a = shape(a["geometry"]).buffer(0)
-    geom_b = shape(b["geometry"]).buffer(0)
-    distance = surface_distance(geom_a, geom_b)
-    T1 = 0.90
-    T2 = 1.0
+    distance = surface_distance(shape(a["geometry"]), shape(b["geometry"]))
+    T1 = 0.9
+    T2 = 1.
     E = 0.01
     S = 0.7
     K = 1 - E - S
+    m = 1 - E
     if distance < T1:
-        app = (-(1 - E)/T2) * distance + 1 - E
+        app = (-m/T2) * distance + m
         _app = E
     elif distance < T2:
-        app = (-(1 - E)/T2) * distance + 1 - E
+        app = (-m/T2) * distance + m
         _app = (K - E) * distance / (T2 - T1) + E - (K - E)*T1/(T2 - T1)
     else:
         app = E
@@ -205,7 +217,7 @@ def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteri
     
     :param ref: Ref features
     :param comp: Comp features
-    :param criteria: a list of criteria to compare features
+    :param criteria: a list of criteria to compare features. Default value is a list with only a surface_geometry criteria.
     """
     # get the ref features and their corresponding candidates (if they have any)
     candidateDictionary = select_candidates(ref, comp)

@@ -35,5 +35,18 @@ members = [
     "pymatch",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests"
+]
+
 [project.scripts]
 pymatch = "pymatch.match:app"
