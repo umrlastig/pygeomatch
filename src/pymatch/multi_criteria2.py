@@ -152,27 +152,17 @@ def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFram
     # adding the not_matched hypothesis
     not_matched = get_matched_array(candidates-1, candidates)
     # the list of not_matched from other hypotheses
-    # def getOrZero(index, candidates, fusion):
-    #     if ~get_matched_array(index, candidates) in fusion:
-    #         return fusion[~get_matched_array(index, candidates)]
-    #     return 0.
     # create all the not matched hypotheses (except for the not_matched one)
     all_not_matched_hypotheses = [~get_matched_array(index, candidates) for index in range(candidates-1)]
-    for h in all_not_matched_hypotheses:
-        print("hyp",h)
     if all([c in fusion_of_criteria for c in all_not_matched_hypotheses]):
         all_not_matched_hypotheses_masses = [fusion_of_criteria[c] for c in all_not_matched_hypotheses]
-        for m in all_not_matched_hypotheses_masses:
-            print("masses",m)
+        # we multiply all the masses to get the mass for the not_matched hypothesis
         mass = reduce(mul, all_not_matched_hypotheses_masses, 1)
     else:
+        # there was at least a candidate for which there was not mass so...
         mass = 0.0
-    print("na_mass",mass)
-    # masses = [getOrZero(index, candidates, potentialSets) for index in range(candidates-1)]
-    # we multiply all the masses to get the mass for the not_matched hypothesis
-    # mass = reduce(mul, masses, 1)
+    # TODO we might want not to add the not_matched hypothesis if its mass is zero...
     # add a source with the not_matched hypothesis
-    # potentialSets.append({not_matched:mass, theta: 1-mass})
     fusion_of_candidates = normalize(combine([fusion_of_criteria, {not_matched:mass, theta: 1-mass}]))
     pignistic = pignistic_probability(fusion_of_candidates)
     maxPignistic, maxPignisticProbability = max(pignistic.items(), key=itemgetter(1))
