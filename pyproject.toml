@@ -1,0 +1,53 @@
+[build-system]
+requires = ["uv_build >= 0.9.26, <0.10.0"]
+build-backend = "uv_build"
+
+[project]
+name = "pymatch"
+version = "0.0.1"
+authors = [
+  { name="Paul Guardiola", email="Paul.Guardiola@ign.fr" },
+  { name="Juste Raimbault", email="Juste.Raimbault@ign.fr" },
+  { name="Ana-Maria Raimond", email="Ana-Maria.Raimond@ign.fr" },
+  { name="Julien Perret", email="Julien.Perret@ign.fr" },
+]
+description = "A package to match geographical features"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "GPL-3.0-or-later"
+license-files = ["LICEN[CS]E*"]
+dependencies = [
+    "bitarray>=3.8.0",
+    "geopandas>=1.0.1",
+    "more-itertools>=10.8.0",
+    "typer>=0.21.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/umrlastig/pymatch/"
+Issues = "https://github.com/umrlastig/pymatch/issues"
+
+[tool.uv.workspace]
+members = [
+    "pymatch",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests"
+]
+
+[project.scripts]
+pymatch = "pymatch.match:app"
