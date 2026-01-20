@@ -1,6 +1,6 @@
 import pytest
-from pymatch.geometric_matching_of_areas import get_accuracy, get_completeness, pre_match, get_geom, group_evaluation, search_optimal_groups, surface_match, filter_links
-from shapely import Polygon, to_geojson, geometry
+from pygeomatch.geometric_matching_of_areas import get_accuracy, get_completeness, pre_match, get_geom, group_evaluation, search_optimal_groups, surface_match, filter_links
+from shapely import Polygon
 import geopandas as gpd
 
 class TestGMA:

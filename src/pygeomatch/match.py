@@ -12,10 +12,10 @@ from datetime import datetime
 import pandas as pd
 import geopandas as gpd
 from shapely import LineString
-from pymatch.geometric_matching_of_areas import surface_match
-from pymatch.multi_criteria import MCA, select_candidates
-from pymatch.multi_criteria2 import MCA2
-from pymatch.util import surface_distance
+from pygeomatch.geometric_matching_of_areas import surface_match
+from pygeomatch.multi_criteria import MCA, select_candidates
+from pygeomatch.multi_criteria2 import MCA2
+from pygeomatch.util import surface_distance
 
 class MatchingAlgorithm(str, Enum):
     gmoa = "GMA"

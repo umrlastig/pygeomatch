@@ -6,7 +6,7 @@ from typing import Iterable, Union
 from functools import partial, reduce
 from operator import mul, itemgetter
 from shapely.geometry import shape
-from pymatch.util import surface_distance
+from pygeomatch.util import surface_distance
 class MCMatch:
     def __init__(self, matched, not_matched, theta):
         self.matched = matched

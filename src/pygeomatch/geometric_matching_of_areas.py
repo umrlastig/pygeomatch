@@ -1,7 +1,7 @@
 import numpy as np
 import shapely
 import geopandas
-from pymatch.util import surface_distance
+from pygeomatch.util import surface_distance
 from more_itertools import partition
 
 """""""""""""" """ GMA """ """"""""""""""""""

@@ -3,7 +3,7 @@ requires = ["uv_build >= 0.9.26, <0.10.0"]
 build-backend = "uv_build"
 
 [project]
-name = "pymatch"
+name = "pygeomatch"
 version = "0.0.1"
 authors = [
   { name="Paul Guardiola", email="Paul.Guardiola@ign.fr" },
@@ -33,7 +33,7 @@ Issues = "https://github.com/umrlastig/pymatch/issues"
 
 [tool.uv.workspace]
 members = [
-    "pymatch",
+    "pygeomatch",
 ]
 
 [dependency-groups]
@@ -50,4 +50,4 @@ testpaths = [
 ]
 
 [project.scripts]
-pymatch = "pymatch.match:app"
+pygeomatch = "pygeomatch.match:app"

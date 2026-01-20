@@ -1,7 +1,7 @@
 from bitarray import frozenbitarray, util
 import pytest
-from pymatch.util import surface_distance
-from pymatch.multi_criteria2 import MCMatch, get_potential_set, combine, get_matched_array, normalize, pignistic_probability, geom_criteria, process_match, select_candidates, MCA2, combination_func
+from pygeomatch.util import surface_distance
+from pygeomatch.multi_criteria2 import MCMatch, get_potential_set, combine, get_matched_array, normalize, pignistic_probability, geom_criteria, process_match, select_candidates, MCA2, combination_func
 from functools import reduce
 from operator import mul, itemgetter
 from shapely import Polygon, to_geojson, geometry
