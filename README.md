@@ -36,6 +36,12 @@ For instance, with the test data in directory *data* using the *MCA* algorithm a
 pymatch data/popRef.shp data/popComp.shp test.gpkg MCA
 ```
 
+# Run tests
+
+```shell
+pytest -v --cov  --cov-report term-missing
+```
+
 ## References
 
 Du, H. (2015). Matching disparate geospatial datasets and validating matches using spatial logic (Doctoral dissertation, University of Nottingham).
