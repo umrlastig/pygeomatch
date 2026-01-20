@@ -8,8 +8,8 @@ For now, we only have surface matching algorithms but others will come soon.
 ## from source
 
 ```shell
-git clone git@github.com:umrlastig/pymatch.git
-cd pymatch
+git clone git@github.com:umrlastig/pygeomatch.git
+cd pygeomatch
 ```
 
 [Install uv](https://docs.astral.sh/uv/getting-started/installation/#installation-methods)
@@ -43,6 +43,14 @@ pytest -v --cov  --cov-report term-missing
 ```
 
 ## References
+
+### Included matching algorithms
+
+Ali, A. B. H. (2001). Qualité géométrique des entités géographiques surfaciques. Application à l'appariement et définition d'une typologie des écarts geométriques (Doctoral dissertation, université Gustave Eiffel).
+
+Olteanu-Raimond, A. M., Mustiere, S., & Ruas, A. (2015). Knowledge formalization for vector data matching using belief theory. Journal of Spatial Information Science, (10), 21-46.
+
+### More to be included
 
 Du, H. (2015). Matching disparate geospatial datasets and validating matches using spatial logic (Doctoral dissertation, University of Nottingham).
 
