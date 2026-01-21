@@ -24,6 +24,7 @@ dependencies = [
     "bitarray>=3.8.0",
     "geopandas>=1.0.1",
     "more-itertools>=10.8.0",
+    "pot>=0.9.6.post1",
     "typer>=0.21.1",
 ]
 

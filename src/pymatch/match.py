@@ -15,6 +15,7 @@ from shapely import LineString
 from pymatch.geometric_matching_of_areas import surface_match
 from pymatch.multi_criteria import MCA, select_candidates
 from pymatch.multi_criteria2 import MCA2
+from pymatch.optimal_transport import OT_matching
 from pymatch.util import surface_distance
 
 class MatchingAlgorithm(str, Enum):
@@ -23,6 +24,7 @@ class MatchingAlgorithm(str, Enum):
     multi = "Multi"
     multi_criteria2 = "MCA2"
     multi2 = "Multi2"
+    ot = "OT"
 
 def separate(popRef , popComp) -> tuple[gpd.GeoDataFrame,gpd.GeoDataFrame]: 
     """
@@ -132,6 +134,9 @@ def main(
                 matches.extend(matches_GMA)
                 return matches
             return match_both_ways_or_not(multi_match2, (gpd1, gpd2), (gpd2, gpd1))
+        elif algorithm == MatchingAlgorithm.ot:
+            # TODO: consider a symmetric match? Not sure if the OT transport we use is perfectly symmetric.
+            return OT_matching(gpd1, gpd2)
         return None
     # use unpacking to tranform a list((a,b,c)) into a list(a), list(b), list(c)
     res_match = do_match()
