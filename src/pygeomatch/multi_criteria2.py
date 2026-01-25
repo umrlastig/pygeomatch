@@ -163,6 +163,7 @@ def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFram
         mass = 0.0
     # TODO we might want not to add the not_matched hypothesis if its mass is zero...
     # add a source with the not_matched hypothesis
+    # TODO output conflict?
     fusion_of_candidates = normalize(combine([fusion_of_criteria, {not_matched:mass, theta: 1-mass}]))
     pignistic = pignistic_probability(fusion_of_candidates)
     maxPignistic, maxPignisticProbability = max(pignistic.items(), key=itemgetter(1))
@@ -170,11 +171,13 @@ def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFram
     if (maxPignistic.count(1) > 1) | (maxPignistic == not_matched):
         return None
     index = maxPignistic.find(1)
+    # TODO output diff max1 - max2
     return (refIndex, compFeatures.iloc[index].name, maxPignisticProbability)
 
 def geom_criteria(a: dict, b: dict) -> MCMatch:
     """
     A simple geometric criteria using the surface geometry.
+    See Ibrahim's thesis.
     
     :param a: Description
     :type a: dict
@@ -212,4 +215,4 @@ def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteri
     # get the ref features and their corresponding candidates (if they have any)
     candidateDictionary = select_candidates(ref, comp)
     results = [process_match(k, next(ref.iloc[[k]].iterfeatures()), comp.iloc[v], criteria) for k,v in candidateDictionary.items()] # type: ignore
-    return [(result[0], comp.index.get_loc(result[1]),result[2]) for result in results if result is not None]
+    return [(result[0], comp.index.get_loc(result[1]), result[2]) for result in results if result is not None]

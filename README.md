@@ -23,6 +23,12 @@ uv sync
 source .venv/bin/activate
 ```
 
+## with pip
+
+```shell
+pip install pygeomatch
+```
+
 # usage
 
 You can now use the *pygeomatch* script to match your data.
