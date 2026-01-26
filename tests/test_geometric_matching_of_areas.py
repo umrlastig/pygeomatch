@@ -28,6 +28,10 @@ class TestGMA:
     def gpd2(self, polygon1,polygon2, polygon3):
         return gpd.GeoDataFrame({"id": [0,1,2]}, geometry=[polygon1,polygon2,polygon3])
 
+    @pytest.fixture(scope="class")
+    def gpd3(self, polygon1):
+        return gpd.GeoDataFrame({"id": [0]}, geometry=[polygon1])
+
     def test_accuracy(self, polygon1, polygon2, polygon3, polygon4):
         a11 = get_accuracy(polygon1, polygon1)
         assert a11 == pytest.approx(1.0)
@@ -101,7 +105,7 @@ class TestGMA:
         assert groups[1][0] == 0
         assert groups[1][1] == 1
 
-    def test_surface_match(self, gpd1, gpd2):
+    def test_surface_match(self, gpd1, gpd2, gpd3):
         params = {
             "minimise_surface_distance": True, 
             "min_surface_intersection": 0.1, 
@@ -117,4 +121,7 @@ class TestGMA:
         params["final_filtering"] = True
         links = surface_match(gpd1, gpd2, params)
         print("links",links)
-        assert len(links) == 0
+        assert len(links) == 2
+        links = surface_match(gpd1, gpd3, params)
+        print("links",links)
+        assert len(links) == 1

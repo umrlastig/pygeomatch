@@ -42,16 +42,19 @@ def surface_match(ref, comp, param: dict):
     #TODO check consistency of all these methods: they don't return the same thing at the moment
     # pre-appariement surfaces
     links = pre_match(ref, comp , param)
+    print("pre_match",links)
     # recherche groupes optimaux 
-    if param["use_optimal_groups"] : 
+    if param["use_optimal_groups"]:
         links = search_optimal_groups(links, ref, comp, param)
+        print("optimal_groups",links)
     # ajout petites surfaces 
     #if param["ajoutPetitesSurfaces"] : 
     #    pass
     #    liensRegroupes = ajoutPetitesSurfaces(liensRegroupes, popRef, popComp, param)
     # filtres finales  
-    if param["final_filtering"] : 
+    if param["final_filtering"]:
         links = filter_links(links, param, ref , comp)
+        print("final_filtering",links)
     return links
 
 def pre_match(ref, comp, param ):
@@ -119,6 +122,7 @@ def search_optimal_groups(pre_match_links, ref , comp , param):
         if len(groups) != 0:
             connected_groups.append(groups)
     for i in range(len(connected_groups)):
+        print("connected group",i,len(connected_groups[i]))
         # pour tous les objets isolés ou les liens 1-1, on ne fait rien de plus 
         if len(connected_groups[i]) == 1 : 
             groups_to_keep.append(connected_groups[i])
@@ -155,7 +159,7 @@ def search_optimal_groups(pre_match_links, ref , comp , param):
             groups_to_keep.append(connected_groups[i])
     L = []
     for k in range(len(groups_to_keep)):
-        print(k,groups_to_keep[k])
+        print("groups_to_keep",k,groups_to_keep[k])
         if len(groups_to_keep[k]) == 2 : 
             L.append(groups_to_keep[k][0])
             L.append(groups_to_keep[k][1])
@@ -220,9 +224,11 @@ def filter_links(grouped_links, param, ref, comp):
     """
     filtered_links = []
     for i in range(len(grouped_links)):
+        print("link",i,grouped_links[i])
         link = []
         if param["minimise_surface_distance"] : 
-            distSurf = grouped_links[i][2]
+            # distSurf = grouped_links[i][2]
+            distSurf = surface_distance(get_geom(grouped_links[i][0],ref), get_geom(grouped_links[i][1],comp))
             print("distSurf",distSurf)
             if distSurf < param["min_surface_distance"]:
                 link.append(grouped_links[i][0])
