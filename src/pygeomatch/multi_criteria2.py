@@ -128,7 +128,7 @@ def pignistic_probability(potentialSet: dict[bitarray, float], threshold: float 
             add(result, util.count_and(f1,f2), f2.count(1), v2, f2)
     return result
 
-def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFrame, criteria: list[Callable[[dict,dict],MCMatch]]) -> Union[tuple,None]:
+def process_match(ref_index: int, ref_feature: dict, comp_features: gpd.GeoDataFrame, criteria: list[Callable[[dict,dict],MCMatch]]) -> Union[tuple,None]:
     """
     Docstring for process_match
     
@@ -143,12 +143,12 @@ def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFram
     :return: Description
     :rtype: tuple[Any, ...] | None
     """
-    candidates = len(compFeatures) + 1 # +1 since we'll add the 'not matched' candidate
+    candidates = len(comp_features) + 1 # +1 since we'll add the 'not matched' candidate
     theta = frozenbitarray(util.ones(candidates)) #ignorance
     #phi = frozenbitarray(util.zeros(candidates)) # conflict
     # we combine the criteria for all the candidates
-    potentialSets = [combine(list(map(lambda c: get_potential_set(i, candidates, c(refFeature, f)), criteria))) for i, f in enumerate(compFeatures.iterfeatures())]
-    fusion_of_criteria = combine(potentialSets)
+    potential_sets = [combine(list(map(lambda c: get_potential_set(i, candidates, c(ref_feature, f)), criteria))) for i, f in enumerate(comp_features.iterfeatures())]
+    fusion_of_criteria = combine(potential_sets)
     # adding the not_matched hypothesis
     not_matched = get_matched_array(candidates-1, candidates)
     # the list of not_matched from other hypotheses
@@ -166,13 +166,13 @@ def process_match(refIndex: int, refFeature: dict, compFeatures: gpd.GeoDataFram
     # TODO output conflict?
     fusion_of_candidates = normalize(combine([fusion_of_criteria, {not_matched:mass, theta: 1-mass}]))
     pignistic = pignistic_probability(fusion_of_candidates)
-    maxPignistic, maxPignisticProbability = max(pignistic.items(), key=itemgetter(1))
+    max_pignistic, max_pignistic_probability = max(pignistic.items(), key=itemgetter(1))
     # if the max is not a simple hypothesis or is the 'not_matched' hypothesis
-    if (maxPignistic.count(1) > 1) | (maxPignistic == not_matched):
+    if (max_pignistic.count(1) > 1) | (max_pignistic == not_matched):
         return None
-    index = maxPignistic.find(1)
+    index = max_pignistic.find(1)
     # TODO output diff max1 - max2
-    return (refIndex, compFeatures.iloc[index].name, maxPignisticProbability)
+    return (ref_index, comp_features.iloc[index].name, max_pignistic_probability)
 
 def geom_criteria(a: dict, b: dict) -> MCMatch:
     """
@@ -213,6 +213,6 @@ def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteri
     :param criteria: a list of criteria to compare features. Default value is a list with only a surface_geometry criteria.
     """
     # get the ref features and their corresponding candidates (if they have any)
-    candidateDictionary = select_candidates(ref, comp)
-    results = [process_match(k, next(ref.iloc[[k]].iterfeatures()), comp.iloc[v], criteria) for k,v in candidateDictionary.items()] # type: ignore
+    candidate_dictionary = select_candidates(ref, comp)
+    results = [process_match(k, next(ref.iloc[[k]].iterfeatures()), comp.iloc[v], criteria) for k,v in candidate_dictionary.items()] # type: ignore
     return [(result[0], comp.index.get_loc(result[1]), result[2]) for result in results if result is not None]

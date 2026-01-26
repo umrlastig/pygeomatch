@@ -4,12 +4,13 @@ build-backend = "uv_build"
 
 [project]
 name = "pygeomatch"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Paul Guardiola", email="Paul.Guardiola@ign.fr" },
   { name="Juste Raimbault", email="Juste.Raimbault@ign.fr" },
   { name="Ana-Maria Raimond", email="Ana-Maria.Raimond@ign.fr" },
   { name="Julien Perret", email="Julien.Perret@ign.fr" },
+  { name="Nicolas Audebert", email="Nicolas.Audebert@ign.fr" },
 ]
 description = "A package to match geographical features"
 readme = "README.md"

@@ -70,9 +70,9 @@ def pre_match(ref, comp, param ):
     """
 
     # The first subarray contains input geometry integer indices. The second subarray contains tree geometry integer indices.
-    refIndices, compIndices = comp["geometry"].sindex.query(ref["geometry"], predicate="intersects")
+    ref_indices, comp_indices = comp["geometry"].sindex.query(ref["geometry"], predicate="intersects")
     # zip both lists into tuples (refIndex, compIndex)
-    zipped = zip(refIndices, compIndices)
+    zipped = zip(ref_indices, comp_indices)
     def measures(a, b):
         """
         Compute measures surface_distance, accuracy and completeness.
@@ -139,17 +139,17 @@ def search_optimal_groups(pre_match_links, ref , comp , param):
             groups_to_keep.append(connected_groups[i])
             continue 
         #on cherche à enlever toutes les combinaisons possibles d'arcs virables
-        distSurfMin = 2
-        distExacMax = 0
+        min_surface_distance = 2
+        max_surface_distance = 0
         to_remove = []                
         dist = group_evaluation(removable, ref, comp, param)
         if param["minimise_surface_distance"]:
-            if dist < distSurfMin :
-                distSurfMin = dist  # gros problemes de logique 
+            if dist < min_surface_distance :
+                min_surface_distance = dist  # gros problemes de logique 
                 to_remove.append(removable)
         else :
-            if dist > distExacMax : 
-                distExacMax = dist 
+            if dist > max_surface_distance : 
+                max_surface_distance = dist 
                 to_remove.append(removable)
         if (len(to_remove)) == 0 : 
             continue 
@@ -205,12 +205,12 @@ def group_evaluation(group , ref , comp , param):
     """
     # create the list of ref and comp from the input links
     l_ref, l_comp = zip(*[[g[0],g[1]] for g in group])
-    unionRef  = list_union(list(l_ref), ref)
-    unionComp = list_union(list(l_comp), comp)
+    ref_union  = list_union(list(l_ref), ref)
+    comp_union = list_union(list(l_comp), comp)
     # combine the measures of the group
     if param["minimise_surface_distance"]:
-        return min(surface_distance(unionRef, unionComp), 2)
-    return max(get_accuracy(unionRef , unionComp) + get_completeness(unionRef , unionComp), -1)
+        return min(surface_distance(ref_union, comp_union), 2)
+    return max(get_accuracy(ref_union , comp_union) + get_completeness(ref_union , comp_union), -1)
 
 def filter_links(grouped_links, param, ref, comp):
     """

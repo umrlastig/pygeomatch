@@ -44,8 +44,8 @@ def OT_matching(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame, *params):
 
     # Compute cost matrix (based on Euclidean distance, so hopefully you use a meter CRS)
     cost_matrix = ot.dist(arr_ref, arr_comp)
-    if max(cost_matrix.shape) > 2000:
-        logging.warn(f"Cost matrix is {cost_matrix.shape}, this might take a while")
+    if max(cost_matrix.shape) > 2000: # type: ignore
+        logging.warn(f"Cost matrix is {cost_matrix.shape}, this might take a while") # type: ignore
 
 
     #solved_transport = ot.solve(cost_matrix, unbalanced=1e1)#, weights_comp, weights_ref)
@@ -60,7 +60,8 @@ def OT_matching(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame, *params):
     # Loop over all polygons in the source DataFrame
     for source_idx in popRef.index:
         # Get a source polygon
-        building = popRef.iloc[source_idx]
+        # next line commented : building variable not used
+        # building = popRef.iloc[source_idx]
         # Get all points that have been sampled for this polygon
         points_indices = np.nonzero(building_idx_ref == source_idx)[0]
     
@@ -69,7 +70,7 @@ def OT_matching(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame, *params):
         for i, p in enumerate(points_indices):
             # Because we use partial OT, the point can be split so we need to find for this (source) point
             # to which target point most of its mass has been moved to by the transport plan
-            max_target_point = np.argmax(partial_transport[p])
+            max_target_point = np.argmax(partial_transport[p]) # type: ignore
             # If the maximum transported mass is zero, then this point has no match
             if partial_transport[p][max_target_point] == 0.:
                 target = -99999 # FIXME

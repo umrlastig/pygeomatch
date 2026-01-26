@@ -35,22 +35,22 @@ def separate(popRef , popComp) -> tuple[gpd.GeoDataFrame,gpd.GeoDataFrame]:
     :return: the reference dataset split into 2 datasets
     :rtype: tuple[GeoDataFrame, GeoDataFrame]
     """
-    popRef4GMA = []
-    popRef4MCA = []
-    listPopRef, listPopComp = select_candidates(popRef, popComp)
-    for i in range(len(listPopRef)):
-        refIndex, refGeometry = listPopRef[i]
-        if len(listPopComp[i]) == 0:
+    ref_gma = []
+    ref_mca = []
+    ref_candidates, comp_candidates = select_candidates(popRef, popComp)
+    for i in range(len(ref_candidates)):
+        ref_index, ref_geom = ref_candidates[i]
+        if len(comp_candidates[i]) == 0:
             # there is no candidate: can it really happen (I mean: does the function actually returns such a thing)?
-            popRef4MCA.append(refIndex)
+            ref_mca.append(ref_index)
         else:
             def condition(comp):
-                return surface_distance(refGeometry, comp[1]) < 0.7
-            if any(condition(c) for c in listPopComp[i]):
-                popRef4MCA.append(refIndex)
+                return surface_distance(ref_geom, comp[1]) < 0.7
+            if any(condition(c) for c in comp_candidates[i]):
+                ref_mca.append(ref_index)
             else:
-                popRef4GMA.append(refIndex)
-    return popRef.iloc[popRef4GMA], popRef.iloc[popRef4MCA]
+                ref_gma.append(ref_index)
+    return popRef.iloc[ref_gma], popRef.iloc[ref_mca]
 
 app = typer.Typer(name="pymatch", help="Pymatch matches geographical features", add_completion=True)
 
@@ -124,13 +124,13 @@ def main(
             return match_both_ways_or_not(MCA2, (gpd1, gpd2), (gpd2, gpd1))
         elif algorithm == MatchingAlgorithm.multi2:
             def multi_match2(ref, comp):
-                popRef4GMA, popRef4MCA = separate(ref, comp)
-                matches    = MCA2(popRef4MCA, comp)
+                ref_gma, ref_mca = separate(ref, comp)
+                matches    = MCA2(ref_mca, comp)
                 # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
                 # to do that, we use the name of the index (with .name) and get the index with get_loc
-                matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
-                matches_GMA = surface_match(popRef4GMA, comp, param)
-                matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
+                matches = list(map(lambda m: [ref.index.get_loc(ref_mca.iloc[m[0]].name), m[1], m[2]], matches))
+                matches_GMA = surface_match(ref_gma, comp, param)
+                matches_GMA = list(map(lambda m: [ref.index.get_loc(ref_gma.iloc[m[0]].name), m[1], m[2]], matches_GMA))
                 matches.extend(matches_GMA)
                 return matches
             return match_both_ways_or_not(multi_match2, (gpd1, gpd2), (gpd2, gpd1))
@@ -155,9 +155,9 @@ def main(
         geom1 = gpd1.loc[match['ID1'],'geometry']
         geom2 = gpd2.loc[match['ID2'],'geometry']
         return LineString([geom1.centroid,geom2.centroid]) # type: ignore
-    geomList = df.apply(createLinkGeometry, axis=1).tolist() # type: ignore
+    geom_list = df.apply(createLinkGeometry, axis=1).tolist() # type: ignore
     # use crs from input file
-    gdf = gpd.GeoDataFrame( df, geometry=geomList, crs=gpd1.crs )
+    gdf = gpd.GeoDataFrame( df, geometry=geom_list, crs=gpd1.crs )
     gdf.to_file(output_file, layer=str(algorithm), driver="GPKG")
     print(datetime.now(),"Done with",algorithm)
     if export_input:
