@@ -28,8 +28,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/umrlastig/pymatch/"
-Issues = "https://github.com/umrlastig/pymatch/issues"
+Homepage = "https://github.com/umrlastig/pygeomatch/"
+Issues = "https://github.com/umrlastig/pygeomatch/issues"
 
 [tool.uv.workspace]
 members = [
