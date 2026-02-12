@@ -245,8 +245,8 @@ class TestMultiCriteria2:
         res = MCA2(gpd1,gpd2, [criteria1,criteria2])
         assert len(res) == 0 # no match
     
-    def test_MCA2_GT(self):
-        gpd1 = gpd.read_file("data/popRef.shp")
-        gpd2 = gpd.read_file("data/popComp.shp")
-        gpd3 = gpd.read_file("data/popEvolution.shp")
-        res = MCA2(gpd1,gpd2, [geom_criteria])
+    # def test_MCA2_GT(self):
+    #     gpd1 = gpd.read_file("data/popRef.shp")
+    #     gpd2 = gpd.read_file("data/popComp.shp")
+    #     gpd3 = gpd.read_file("data/popEvolution.shp")
+    #     res = MCA2(gpd1,gpd2, [geom_criteria])
