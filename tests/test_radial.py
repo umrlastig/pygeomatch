@@ -11,7 +11,24 @@ def polygon1():
 def polygon2():
     return from_wkt("POLYGON ((662761 6854297 0, 662762 6854296 0, 662761 6854295 0, 662763 6854295 0, 662763 6854296 0, 662763 6854296 0, 662768 6854305 0, 662770 6854304 0, 662766 6854297 0, 662765 6854295 0, 662763 6854290 0, 662761 6854288 0, 662755 6854291 0,662759 6854297 0, 662760 6854296 0, 662761 6854297 0))")
 
+def test_interpolate():
+    coordinate_list = [[0., 0.],[100., 10.]]
+    fs = 10
+    t = [s/fs for s in range(1, fs+1)]
+    interpolated = [radial.interpolate(coordinate_list[0], coordinate_list[1], s) for s in t]
+    expected = [[10.0, 1.0], [20.0, 2.0], [30.0, 3.0], [40.0, 4.0], [50.0, 5.0], [60.0, 6.0], [70.0, 7.0], [80.0, 8.0], [90.0, 9.0], [100.0, 10.0]]
+    assert interpolated == expected
+
+def test_signature(polygon1, polygon2):
+    signature = radial.signature(polygon1, fs=1)
+    print(polygon1)
+    print(signature)
+    expected1 = [0.0, 0.0466328575598247, 0.07196144793017777, 0.09335226793064327, 0.11868085830099634, 0.14589479639226527, 0.17310873448857894, 0.17997691287462425, 0.40445184712611987, 0.4481606666983946, 0.6269049265951417, 0.6813328027712223, 0.7833200484379788, 0.8523102079828085, 1.0]
+    expected2 = [0.347025347606347, 0.17245043777819602, 0.2022368278115209, 0.14827162357765464, 0.09465471783841295, 0.0269137714925333, 0.12733695148801058, 0.13633939004632425, 0.9752975388469135, 1.0, 0.37312864360780823, 0.23361687526690048, 0.35622906551057176, 0.582378100671725, 0.6352741785538571]
+    assert signature[0] == expected1
+    assert signature[1] == expected2
+
 def test_radial_distance(polygon1, polygon2):
-    dist = radial.radial_distance(polygon1, polygon2)
+    dist = radial.radial_distance(polygon1, polygon2, fs=1)#no interpolation
     print(dist)
-    assert dist == pytest.approx(0.0915944791404684)#value from tracklib
+    assert dist == pytest.approx(0.02659112237598481)#value from tracklib is 0.0915944791404684

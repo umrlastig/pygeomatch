@@ -4,7 +4,7 @@ from pygeomatch.util import surface_distance
 from pygeomatch.multi_criteria2 import MCMatch, get_potential_set, combine, get_matched_array, normalize, pignistic_probability, geom_criteria, process_match, select_candidates, MCA2, combination_func
 from functools import reduce
 from operator import mul, itemgetter
-from shapely import Polygon, to_geojson, geometry
+from shapely import Polygon, geometry
 import geopandas as gpd
 
 class TestMultiCriteria2:
@@ -41,16 +41,16 @@ class TestMultiCriteria2:
         d = {"geometry":geometry.mapping(polygon4)}
         criteria = geom_criteria(a, b)
         print("geom_criteria",criteria)
-        assert criteria.matched == pytest.approx(0.396)
+        assert criteria.matched == pytest.approx(0.01)#0.396
         criteria = geom_criteria(a, c)
         print("geom_criteria",criteria)
         assert criteria.matched == pytest.approx(0.01)
         criteria = geom_criteria(a, d)
         print("geom_criteria",criteria)
-        assert criteria.matched == pytest.approx(0.099)
+        assert criteria.matched == pytest.approx(0.01)#0.099
         criteria = geom_criteria(a, a)
         print("geom_criteria",criteria)
-        assert criteria.matched == pytest.approx(0.99)
+        assert criteria.matched == pytest.approx(1.0)#0.99
 
     def test_combine(self):
         candidates = 2
@@ -244,3 +244,9 @@ class TestMultiCriteria2:
             return MCMatch(0.0,0.5,0.5)
         res = MCA2(gpd1,gpd2, [criteria1,criteria2])
         assert len(res) == 0 # no match
+    
+    def test_MCA2_GT(self):
+        gpd1 = gpd.read_file("data/popRef.shp")
+        gpd2 = gpd.read_file("data/popComp.shp")
+        gpd3 = gpd.read_file("data/popEvolution.shp")
+        res = MCA2(gpd1,gpd2, [geom_criteria])

@@ -7,6 +7,7 @@ from functools import partial, reduce
 from operator import mul, itemgetter
 from shapely.geometry import shape
 from pygeomatch.util import surface_distance
+from pygeomatch.radial import radial_distance
 class MCMatch:
     def __init__(self, matched, not_matched, theta):
         self.matched = matched
@@ -179,32 +180,52 @@ def geom_criteria(a: dict, b: dict) -> MCMatch:
     A simple geometric criteria using the surface geometry.
     See Ibrahim's thesis.
     
-    :param a: Description
+    :param a: a feature
     :type a: dict
-    :param b: Description
+    :param b: a feature
     :type b: dict
-    :return: Description
+    :return: values for matched, not matched and ignorance
     :rtype: MCMatch
     """
     distance = surface_distance(shape(a["geometry"]), shape(b["geometry"]))
-    T1 = 0.9
-    T2 = 1.
+    T1 = 0.5
+    T2 = 0.6
     E = 0.01
-    S = 0.7
+    S = 0.6
     K = 1 - E - S
-    m = 1 - E
+    app = (E - 1.0) * distance / T2 + 1.0 if distance < T2 else E
     if distance < T1:
-        app = (-m/T2) * distance + m
         _app = E
     elif distance < T2:
-        app = (-m/T2) * distance + m
-        _app = (K - E) * distance / (T2 - T1) + E - (K - E)*T1/(T2 - T1)
+        _app = K * distance / (T2 - T1) - K * T1 / (T2 - T1)
     else:
-        app = E
         _app = K
     return MCMatch(app ,_app, 1 - app - _app)
 
-def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteria])->list:
+def radial_criteria(a: dict, b: dict) -> MCMatch:
+    """
+    A geometric criteria using the radial distance.
+    See:
+    - Méneroux, Y., Maidaneh Abdi, I., Le Guilcher, A., & Olteanu-Raimond, A.-M. (2022). Is the radial distance really a distance? An analysis of its properties and interest for the matching of polygon features. International Journal of Geographical Information Science, 37(2), 438–475. https://doi.org/10.1080/13658816.2022.2123487 .
+    - Yann Méneroux, Marie-Dominique van Damme. Tracklib: a python library with a variety of tools, operators and functions to manipulate GPS trajectories. 2024. ⟨hal-04356178v2⟩ 
+    
+    :param a: a feature
+    :type a: dict
+    :param b: a feature
+    :type b: dict
+    :return: values for matched, not matched and ignorance
+    :rtype: MCMatch
+    """
+    distance = radial_distance(shape(a["geometry"]), shape(b["geometry"])) # type: ignore
+    T1 = 0.25
+    E = 0.01
+    S = 0.9
+    K = 1 - E - S
+    app = (E - 0.5) * distance / T1 + 0.5 if distance < T1 else E
+    _app = K * distance / T1 if distance < T1 else K
+    return MCMatch(app ,_app, 1 - app - _app)
+
+def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteria, radial_criteria])->list:
     """
     Process Multi Criteria Matching.
     

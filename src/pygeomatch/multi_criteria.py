@@ -414,7 +414,7 @@ def select_candidates(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame):
     return (list(_ref), list(_comp))
 
 
-def processMatch(ref_feature, comp_list):
+def process_match(ref_feature, comp_list):
     """
     Process a feature and its candidates.
 
@@ -476,13 +476,13 @@ def MCA(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame):
     """
     # get the list of ref objects and their corresponding candidates
     ref_list, comp_list = select_candidates(ref, comp)
-    App = []
+    app = []
     for i in range(len(ref_list)):
         # match ref feature i with its candidates
         # listPopRef[i] is refIndex, refGeometry
-        (list_critere_i, _, liste) = processMatch(ref_list[i], comp_list[i])
+        (list_critere_i, _, liste) = process_match(ref_list[i], comp_list[i])
         if not ((liste == "NA") | (liste == "theta")):
             decision = int(liste[1]) - 1
-            App.append((ref_list[i][0], comp_list[i]
+            app.append((ref_list[i][0], comp_list[i]
                        [decision][0], list_critere_i[decision]))
-    return App
+    return app
