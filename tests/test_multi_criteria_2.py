@@ -1,11 +1,14 @@
 from bitarray import frozenbitarray, util
 import pytest
 from pygeomatch.util import surface_distance
-from pygeomatch.multi_criteria2 import MCMatch, get_potential_set, combine, get_matched_array, normalize, pignistic_probability, geom_criteria, process_match, select_candidates, MCA2, combination_func
+import pygeomatch.multi_criteria2 as m_c2
 from functools import reduce
 from operator import mul, itemgetter
 from shapely import Polygon, geometry
 import geopandas as gpd
+
+def compare(match1: m_c2.MCMatch, match2: m_c2.MCMatch) -> bool:
+    return (match1.matched == pytest.approx(match2.matched)) and (match1.not_matched == pytest.approx(match2.not_matched)) and (match1.theta == pytest.approx(match2.theta))
 
 class TestMultiCriteria2:
     @pytest.fixture(scope="class")
@@ -39,40 +42,40 @@ class TestMultiCriteria2:
         b = {"geometry":geometry.mapping(polygon2)}
         c = {"geometry":geometry.mapping(polygon3)}
         d = {"geometry":geometry.mapping(polygon4)}
-        criteria = geom_criteria(a, b)
+        criteria = m_c2.geom_criteria(a, b)
         print("geom_criteria",criteria)
         assert criteria.matched == pytest.approx(0.01)#0.396
-        criteria = geom_criteria(a, c)
+        criteria = m_c2.geom_criteria(a, c)
         print("geom_criteria",criteria)
         assert criteria.matched == pytest.approx(0.01)
-        criteria = geom_criteria(a, d)
+        criteria = m_c2.geom_criteria(a, d)
         print("geom_criteria",criteria)
         assert criteria.matched == pytest.approx(0.01)#0.099
-        criteria = geom_criteria(a, a)
+        criteria = m_c2.geom_criteria(a, a)
         print("geom_criteria",criteria)
         assert criteria.matched == pytest.approx(1.0)#0.99
 
     def test_combine(self):
         candidates = 2
-        m1c1 = MCMatch(0.4,0.0,0.6)
-        m2c1 = MCMatch(0.3,0.0,0.7)
-        mc1 = combine([get_potential_set(0, candidates, m1c1),get_potential_set(0, candidates, m2c1)])
-        c1 = get_matched_array(0, candidates)
+        m1c1 = m_c2.MCMatch(0.4,0.0,0.6)
+        m2c1 = m_c2.MCMatch(0.3,0.0,0.7)
+        mc1 = m_c2.combine([m_c2.get_potential_set(0, candidates, m1c1), m_c2.get_potential_set(0, candidates, m2c1)])
+        c1 = m_c2.get_matched_array(0, candidates)
         theta = frozenbitarray(util.ones(candidates)) #ignorance
         assert mc1[c1] == pytest.approx(0.58)
         assert mc1[theta] == pytest.approx(0.42)
-        mc1 = combination_func([get_potential_set(0, candidates, m1c1),get_potential_set(0, candidates, m2c1)])
+        mc1 = m_c2.combination_func([m_c2.get_potential_set(0, candidates, m1c1), m_c2.get_potential_set(0, candidates, m2c1)])
         assert mc1[c1] == pytest.approx(0.58)
         assert mc1[theta] == pytest.approx(0.42)
 
     def test_normalize(self):
         candidates = 2
-        m1c1 = MCMatch(0.4,0.0,0.6)
-        m2c1 = MCMatch(0.3,0.0,0.7)
-        mc1 = combine([get_potential_set(0, candidates, m1c1),get_potential_set(0, candidates, m2c1)])
-        normalized = normalize(mc1)
+        m1c1 = m_c2.MCMatch(0.4,0.0,0.6)
+        m2c1 = m_c2.MCMatch(0.3,0.0,0.7)
+        mc1 = m_c2.combine([m_c2.get_potential_set(0, candidates, m1c1), m_c2.get_potential_set(0, candidates, m2c1)])
+        normalized = m_c2.normalize(mc1)
         print(normalized)
-        c1 = get_matched_array(0, candidates)
+        c1 = m_c2.get_matched_array(0, candidates)
         theta = frozenbitarray(util.ones(candidates)) #ignorance
         assert normalized[c1] == pytest.approx(0.58)
         assert normalized[theta] == pytest.approx(0.42)
@@ -82,21 +85,21 @@ class TestMultiCriteria2:
         From Ana-Maria Olteanu's PhD Thesis, p.110-113.
         """
         candidates = 4 # including the not_matched hypothesis
-        m1c1 = MCMatch(0.4,0.0,0.6)
-        m2c1 = MCMatch(0.3,0.0,0.7)
-        m1c2 = MCMatch(0.1,0.9,0.0)
-        m2c2 = MCMatch(0.0,1.0,0.0)
-        m1c3 = MCMatch(0.35,0.0,0.65)
-        m2c3 = MCMatch(0.3,0.0,0.7)
-        mc1 = combine([get_potential_set(0, candidates, m1c1),get_potential_set(0, candidates, m2c1)])
-        mc2 = combine([get_potential_set(1, candidates, m1c2),get_potential_set(1, candidates, m2c2)])
-        mc3 = combine([get_potential_set(2, candidates, m1c3),get_potential_set(2, candidates, m2c3)])
+        m1c1 = m_c2.MCMatch(0.4,0.0,0.6)
+        m2c1 = m_c2.MCMatch(0.3,0.0,0.7)
+        m1c2 = m_c2.MCMatch(0.1,0.9,0.0)
+        m2c2 = m_c2.MCMatch(0.0,1.0,0.0)
+        m1c3 = m_c2.MCMatch(0.35,0.0,0.65)
+        m2c3 = m_c2.MCMatch(0.3,0.0,0.7)
+        mc1 = m_c2.combine([m_c2.get_potential_set(0, candidates, m1c1), m_c2.get_potential_set(0, candidates, m2c1)])
+        mc2 = m_c2.combine([m_c2.get_potential_set(1, candidates, m1c2), m_c2.get_potential_set(1, candidates, m2c2)])
+        mc3 = m_c2.combine([m_c2.get_potential_set(2, candidates, m1c3), m_c2.get_potential_set(2, candidates, m2c3)])
         print("c1",mc1)
         print("c2",mc2)
         print("c3",mc3)
-        c1 = get_matched_array(0, candidates)
-        c2 = get_matched_array(1, candidates)
-        c3 = get_matched_array(2, candidates)
+        c1 = m_c2.get_matched_array(0, candidates)
+        c2 = m_c2.get_matched_array(1, candidates)
+        c3 = m_c2.get_matched_array(2, candidates)
         theta = frozenbitarray(util.ones(candidates)) #ignorance
         phi = frozenbitarray(util.zeros(candidates)) # conflict
         print("mc1[c1]",mc1[c1])
@@ -119,23 +122,23 @@ class TestMultiCriteria2:
         From Ana-Maria Olteanu's PhD Thesis, p.110-118.
         """
         candidates = 4
-        m1c1 = MCMatch(0.4,0.0,0.6)
-        m2c1 = MCMatch(0.3,0.0,0.7)
-        m1c2 = MCMatch(0.1,0.9,0.0)
-        m2c2 = MCMatch(0.0,1.0,0.0)
-        m1c3 = MCMatch(0.35,0.0,0.65)
-        m2c3 = MCMatch(0.3,0.0,0.7)
-        mc1 = combine([get_potential_set(0, candidates, m1c1),get_potential_set(0, candidates, m2c1)])
-        mc2 = combine([get_potential_set(1, candidates, m1c2),get_potential_set(1, candidates, m2c2)])
-        mc3 = combine([get_potential_set(2, candidates, m1c3),get_potential_set(2, candidates, m2c3)])
+        m1c1 = m_c2.MCMatch(0.4,0.0,0.6)
+        m2c1 = m_c2.MCMatch(0.3,0.0,0.7)
+        m1c2 = m_c2.MCMatch(0.1,0.9,0.0)
+        m2c2 = m_c2.MCMatch(0.0,1.0,0.0)
+        m1c3 = m_c2.MCMatch(0.35,0.0,0.65)
+        m2c3 = m_c2.MCMatch(0.3,0.0,0.7)
+        mc1 = m_c2.combine([m_c2.get_potential_set(0, candidates, m1c1), m_c2.get_potential_set(0, candidates, m2c1)])
+        mc2 = m_c2.combine([m_c2.get_potential_set(1, candidates, m1c2), m_c2.get_potential_set(1, candidates, m2c2)])
+        mc3 = m_c2.combine([m_c2.get_potential_set(2, candidates, m1c3), m_c2.get_potential_set(2, candidates, m2c3)])
         potentialSets = [mc1,mc2,mc3]
-        intermediate = combine(potentialSets)
+        intermediate = m_c2.combine(potentialSets)
         # adding the not_matched hypothesis
-        not_matched = get_matched_array(candidates-1, candidates)
+        not_matched = m_c2.get_matched_array(candidates-1, candidates)
         # the list of not_matched from other hypotheses
         def getOrZero(index, candidates, fusion):
-            if ~get_matched_array(index, candidates) in fusion:
-                return fusion[~get_matched_array(index, candidates)]
+            if ~m_c2.get_matched_array(index, candidates) in fusion:
+                return fusion[~m_c2.get_matched_array(index, candidates)]
             return 0.
         masses = [getOrZero(index, candidates, intermediate) for index in range(candidates-1)]
         for m in masses:
@@ -145,10 +148,10 @@ class TestMultiCriteria2:
         # add a source with the not_matched hypothesis
         theta = frozenbitarray(util.ones(candidates)) #ignorance
         potentialSets.append({not_matched:mass, theta: 1-mass})
-        final = combine(potentialSets)
-        c1 = get_matched_array(0, 4)
-        c2 = get_matched_array(1, 4)
-        c3 = get_matched_array(2, 4)
+        final = m_c2.combine(potentialSets)
+        c1 = m_c2.get_matched_array(0, 4)
+        c2 = m_c2.get_matched_array(1, 4)
+        c3 = m_c2.get_matched_array(2, 4)
         theta = frozenbitarray(util.ones(4)) #ignorance
         phi = frozenbitarray(util.zeros(4)) # conflict
         print("final",final)
@@ -164,7 +167,7 @@ class TestMultiCriteria2:
         print("final[phi]",final[phi])
         assert final[phi] == pytest.approx(0.38449) # 0.39 in the manuscript
         assert final[phi] == pytest.approx(0.39, rel=2e-2)
-        norm = normalize(final)
+        norm = m_c2.normalize(final)
         print("norm",norm)
         print("norm[c1]",norm[c1])
         assert norm[c1] == pytest.approx(0.385875) # further approximated to 0.4 in the manuscript
@@ -175,7 +178,7 @@ class TestMultiCriteria2:
         print("norm[~c2]",norm[~c2])
         assert norm[~c2] == pytest.approx(0.279427) # 0.288 in the manuscript
         assert norm[~c2] == pytest.approx(0.288, rel=3e-2)
-        pignistic = pignistic_probability(norm)
+        pignistic = m_c2.pignistic_probability(norm)
         maxPignistic, maxPignisticProbability = max(pignistic.items(), key=itemgetter(1))
         print("pignistic",pignistic)
         print("pignistic[c1]",pignistic[c1])
@@ -189,19 +192,19 @@ class TestMultiCriteria2:
         ref = {}
         comp = gpd.GeoDataFrame({"id": [0,1,2]}, geometry=[polygon1, polygon1, polygon1])
         print(comp.head())
-        def criteria1(a: dict, b: dict) -> MCMatch:
+        def criteria1(a: dict, b: dict) -> m_c2.MCMatch:
             if b["id"] == '0':
-                return MCMatch(0.4,0.0,0.6)
+                return m_c2.MCMatch(0.4,0.0,0.6)
             elif b["id"] == '1':
-                return MCMatch(0.1,0.9,0.0)
-            return MCMatch(0.35,0.0,0.65)
-        def criteria2(a: dict, b: dict) -> MCMatch:
+                return m_c2.MCMatch(0.1,0.9,0.0)
+            return m_c2.MCMatch(0.35,0.0,0.65)
+        def criteria2(a: dict, b: dict) -> m_c2.MCMatch:
             if b["id"] == '0':
-                return MCMatch(0.3,0.0,0.7)
+                return m_c2.MCMatch(0.3,0.0,0.7)
             elif b["id"] == '1':
-                return MCMatch(0.0,1.0,0.0)
-            return MCMatch(0.3,0.0,0.7)
-        res = process_match(0, ref, comp, [criteria1, criteria2])
+                return m_c2.MCMatch(0.0,1.0,0.0)
+            return m_c2.MCMatch(0.3,0.0,0.7)
+        res = m_c2.process_match(0, ref, comp, [criteria1, criteria2])
         assert res is not None
         _, maxPignistic, maxPignisticProbability = res
         assert maxPignistic == 0
@@ -211,26 +214,26 @@ class TestMultiCriteria2:
     def test_select_candidates(self, polygon1, polygon2, polygon3):
         gpd1 = gpd.GeoDataFrame({"id": [0]}, geometry=[polygon1])
         gpd2 = gpd.GeoDataFrame({"id": [0,1]}, geometry=[polygon2,polygon3])
-        res = select_candidates(gpd1,gpd2)
+        res = m_c2.select_candidates(gpd1,gpd2)
         assert len(res[0]) == 1 # only 1 match
         assert res[0][0] == 0 # the match is 0-0
 
     def test_MCA2(self, polygon1, polygon2):
         gpd1 = gpd.GeoDataFrame({"id": [0]}, geometry=[polygon1])
         gpd2 = gpd.GeoDataFrame({"id": [0,1,2]}, geometry=[polygon1,polygon2,polygon2])
-        def criteria1(a: dict, b: dict) -> MCMatch:
+        def criteria1(a: dict, b: dict) -> m_c2.MCMatch:
             if b["id"] == '0':
-                return MCMatch(0.4,0.0,0.6)
+                return m_c2.MCMatch(0.4,0.0,0.6)
             elif b["id"] == '1':
-                return MCMatch(0.1,0.9,0.0)
-            return MCMatch(0.35,0.0,0.65)
-        def criteria2(a: dict, b: dict) -> MCMatch:
+                return m_c2.MCMatch(0.1,0.9,0.0)
+            return m_c2.MCMatch(0.35,0.0,0.65)
+        def criteria2(a: dict, b: dict) -> m_c2.MCMatch:
             if b["id"] == '0':
-                return MCMatch(0.3,0.0,0.7)
+                return m_c2.MCMatch(0.3,0.0,0.7)
             elif b["id"] == '1':
-                return MCMatch(0.0,1.0,0.0)
-            return MCMatch(0.3,0.0,0.7)
-        res = MCA2(gpd1,gpd2, [criteria1,criteria2])
+                return m_c2.MCMatch(0.0,1.0,0.0)
+            return m_c2.MCMatch(0.3,0.0,0.7)
+        res = m_c2.MCA2(gpd1,gpd2, [criteria1,criteria2])
         assert len(res) == 1 # only 1 match
         assert res[0][1] == 0 # the match is 0-0
         assert res[0][2] == pytest.approx(0.5, rel=5e-2) # pignistic probability is 0.5
@@ -238,13 +241,45 @@ class TestMultiCriteria2:
     def test_MCA2_not_matched(self, polygon1, polygon2):
         gpd1 = gpd.GeoDataFrame({"id": [0]}, geometry=[polygon1])
         gpd2 = gpd.GeoDataFrame({"id": [0]}, geometry=[polygon2])
-        def criteria1(a: dict, b: dict) -> MCMatch:
-            return MCMatch(0.1,0.6,0.3)
-        def criteria2(a: dict, b: dict) -> MCMatch:
-            return MCMatch(0.0,0.5,0.5)
-        res = MCA2(gpd1,gpd2, [criteria1,criteria2])
+        def criteria1(a: dict, b: dict) -> m_c2.MCMatch:
+            return m_c2.MCMatch(0.1,0.6,0.3)
+        def criteria2(a: dict, b: dict) -> m_c2.MCMatch:
+            return m_c2.MCMatch(0.0,0.5,0.5)
+        res = m_c2.MCA2(gpd1,gpd2, [criteria1,criteria2])
         assert len(res) == 0 # no match
-    
+
+    def test_surface_distance_belief_function(self):
+        assert compare(m_c2.surface_distance_belief_function(0.0), m_c2.MCMatch(1.0, 0.0, 0.0))
+        assert compare(m_c2.surface_distance_belief_function(0.3), m_c2.MCMatch(0.505, 0.0, 0.495))
+        assert compare(m_c2.surface_distance_belief_function(0.5), m_c2.MCMatch(0.175,0.0,0.825))
+        assert compare(m_c2.surface_distance_belief_function(0.6), m_c2.MCMatch(0.01, 0.39, 0.6))
+        assert compare(m_c2.surface_distance_belief_function(1.0), m_c2.MCMatch(0.01, 0.39, 0.6))
+
+    def test_radial_distance_belief_function(self):
+        assert compare(m_c2.radial_distance_belief_function(0.0), m_c2.MCMatch(0.5,0.0,0.5))
+        assert compare(m_c2.radial_distance_belief_function(0.1), m_c2.MCMatch(0.304,0.036,0.66))
+        assert compare(m_c2.radial_distance_belief_function(0.25), m_c2.MCMatch(0.01,0.09,0.9))
+        assert compare(m_c2.radial_distance_belief_function(0.5), m_c2.MCMatch(0.01,0.09,0.9))
+        assert compare(m_c2.radial_distance_belief_function(1.0), m_c2.MCMatch(0.01,0.09,0.9))
+
+    def test_radial_criteria(self, polygon1, polygon2, polygon3, polygon4):
+        a = {"geometry":geometry.mapping(polygon1)}
+        b = {"geometry":geometry.mapping(polygon2)}
+        c = {"geometry":geometry.mapping(polygon3)}
+        d = {"geometry":geometry.mapping(polygon4)}
+        criteria = m_c2.radial_criteria(a, b)
+        print("radial_criteria",criteria)
+        assert criteria.matched == pytest.approx(0.12837540740022824)
+        criteria = m_c2.radial_criteria(a, c)
+        print("radial_criteria",criteria)
+        assert criteria.matched == pytest.approx(0.5)
+        criteria = m_c2.radial_criteria(a, d)
+        print("radial_criteria",criteria)
+        assert criteria.matched == pytest.approx(0.01)
+        criteria = m_c2.radial_criteria(a, a)
+        print("radial_criteria",criteria)
+        assert criteria.matched == pytest.approx(0.5)
+
     # def test_MCA2_GT(self):
     #     gpd1 = gpd.read_file("data/popRef.shp")
     #     gpd2 = gpd.read_file("data/popComp.shp")

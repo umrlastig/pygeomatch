@@ -175,6 +175,26 @@ def process_match(ref_index: int, ref_feature: dict, comp_features: gpd.GeoDataF
     # TODO output diff max1 - max2
     return (ref_index, comp_features.iloc[index].name, max_pignistic_probability)
 
+def surface_distance_belief_function(distance: float, T1: float = 0.5, T2: float = 0.6, E: float = 0.01, S:float = 0.6) -> MCMatch:
+    """
+    Belief function for the surface distance.
+    See Ibrahim's thesis.
+    
+    :param distance: a distance
+    :type distance: float
+    :return: values for matched, not matched and ignorance
+    :rtype: MCMatch
+    """
+    K = 1 - E - S
+    app = (E - 1.0) * distance / T2 + 1.0 if distance < T2 else E
+    if distance < T1:
+        _app = 0.0
+    elif distance < T2:
+        _app = K * distance / (T2 - T1) - K * T1 / (T2 - T1)
+    else:
+        _app = K
+    return MCMatch(app ,_app, 1 - app - _app)
+
 def geom_criteria(a: dict, b: dict) -> MCMatch:
     """
     A simple geometric criteria using the surface geometry.
@@ -188,18 +208,21 @@ def geom_criteria(a: dict, b: dict) -> MCMatch:
     :rtype: MCMatch
     """
     distance = surface_distance(shape(a["geometry"]), shape(b["geometry"]))
-    T1 = 0.5
-    T2 = 0.6
-    E = 0.01
-    S = 0.6
+    return surface_distance_belief_function(distance)
+
+def radial_distance_belief_function(distance: float, T1:float = 0.25, E:float = 0.01, S:float = 0.9) -> MCMatch:
+    """
+    Belief function for the radial distance.
+    See Ibrahim's thesis.
+    
+    :param distance: a distance
+    :type distance: float
+    :return: values for matched, not matched and ignorance
+    :rtype: MCMatch
+    """
     K = 1 - E - S
-    app = (E - 1.0) * distance / T2 + 1.0 if distance < T2 else E
-    if distance < T1:
-        _app = E
-    elif distance < T2:
-        _app = K * distance / (T2 - T1) - K * T1 / (T2 - T1)
-    else:
-        _app = K
+    app = (E - 0.5) * distance / T1 + 0.5 if distance < T1 else E
+    _app = K * distance / T1 if distance < T1 else K
     return MCMatch(app ,_app, 1 - app - _app)
 
 def radial_criteria(a: dict, b: dict) -> MCMatch:
@@ -217,13 +240,7 @@ def radial_criteria(a: dict, b: dict) -> MCMatch:
     :rtype: MCMatch
     """
     distance = radial_distance(shape(a["geometry"]), shape(b["geometry"])) # type: ignore
-    T1 = 0.25
-    E = 0.01
-    S = 0.9
-    K = 1 - E - S
-    app = (E - 0.5) * distance / T1 + 0.5 if distance < T1 else E
-    _app = K * distance / T1 if distance < T1 else K
-    return MCMatch(app ,_app, 1 - app - _app)
+    return radial_distance_belief_function(distance)
 
 def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteria, radial_criteria])->list:
     """
