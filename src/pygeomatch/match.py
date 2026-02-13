@@ -64,12 +64,12 @@ def main(
         do_match_both_ways: Annotated[bool, typer.Option("--both/--no-both","-b/-B", help="If true, match the features both ways (A=>B and B=>A) and merge the results.")] = True,
         min_surface_intersection:  Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 1.,
         min_intersection_percentage: Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 0.1,
-        sure_intersection_percentage: Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 0.8,
+        sure_intersection_percentage: Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 0.6,
         minimise_surface_distance: Annotated[bool, typer.Option(help="min surface intersection between fetures to consider matching")] = True,
-        min_surface_distance: Annotated[float, typer.Option(min=0, help="min surface distance between fetures to consider matching in the final evaluation (only used if minimise_surface_distance is true)")] = 0.25,
+        max_surface_distance: Annotated[float, typer.Option(min=0, help="min surface distance between fetures to consider matching in the final evaluation (only used if minimise_surface_distance is true)")] = 0.5,
         min_accuracy_completeness: Annotated[float, typer.Option(min=0, help="min accuracy and completeness between fetures to consider matching in the final evaluation (only used if minimise_surface_distance is false)")] = 0.8,
         use_optimal_groups: Annotated[bool, typer.Option(help="if true, searches for optimal groups")] = True,
-        final_filtering: Annotated[bool, typer.Option(help="if true, filter the final links using min_surface_distance or min_accuracy_completeness depending on minimise_surface_distance")] = True
+        final_filtering: Annotated[bool, typer.Option(help="if true, filter the final links using max_surface_distance or min_accuracy_completeness depending on minimise_surface_distance")] = False
         # ajoutPetitesSurfaces: Annotated[bool, typer.Option(help="min surface intersection between fetures to consider matching")] = True,
         # seuilPourcentageTaillePetitesSurfaces: Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 0.1
 ):
@@ -82,7 +82,7 @@ def main(
         "min_intersection_percentage": min_intersection_percentage,
         "sure_intersection_percentage": sure_intersection_percentage,
         "minimise_surface_distance": minimise_surface_distance,
-        "min_surface_distance": min_surface_distance,
+        "max_surface_distance": max_surface_distance,
         "min_accuracy_completeness": min_accuracy_completeness,
         "use_optimal_groups": use_optimal_groups,
         "final_filtering": final_filtering,
