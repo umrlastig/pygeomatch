@@ -13,17 +13,15 @@ import pandas as pd
 import geopandas as gpd
 from shapely import LineString
 from pygeomatch.geometric_matching_of_areas import surface_match
-from pygeomatch.multi_criteria import MCA, select_candidates
-from pygeomatch.multi_criteria2 import MCA2
-from pygeomatch.util import surface_distance
+from pygeomatch.multi_criteria2 import MCA2, select_candidates
+from pygeomatch.util import MatchingLink, surface_distance, links_grouped_by_component
 from pygeomatch.optimal_transport import OT_matching
+from itertools import chain
 
 class MatchingAlgorithm(str, Enum):
     gmoa = "GMA"
     multi_criteria = "MCA"
     multi = "Multi"
-    multi_criteria2 = "MCA2"
-    multi2 = "Multi2"
     ot = "OT"
 
 def separate(popRef , popComp) -> tuple[gpd.GeoDataFrame,gpd.GeoDataFrame]: 
@@ -37,20 +35,47 @@ def separate(popRef , popComp) -> tuple[gpd.GeoDataFrame,gpd.GeoDataFrame]:
     """
     ref_gma = []
     ref_mca = []
-    ref_candidates, comp_candidates = select_candidates(popRef, popComp)
-    for i in range(len(ref_candidates)):
-        ref_index, ref_geom = ref_candidates[i]
-        if len(comp_candidates[i]) == 0:
+    candidate_dictionary = select_candidates(popRef, popComp)
+    for ref_index, comp_candidates in candidate_dictionary.items():
+        ref_geom = popRef.iloc[[ref_index]].iloc[0]["geometry"]
+        if len(comp_candidates) == 0:
             # there is no candidate: can it really happen (I mean: does the function actually returns such a thing)?
             ref_mca.append(ref_index)
         else:
             def condition(comp):
                 return surface_distance(ref_geom, comp[1]) < 0.7
-            if any(condition(c) for c in comp_candidates[i]):
+            if any(condition(c) for c in comp_candidates):
                 ref_mca.append(ref_index)
             else:
                 ref_gma.append(ref_index)
     return popRef.iloc[ref_gma], popRef.iloc[ref_mca]
+
+def merge_groups(links: list[MatchingLink]) -> list[MatchingLink]:
+    groups = links_grouped_by_component(links)
+    for idx, group in enumerate(groups):
+        for l in group:
+            l.group = idx
+    return list(chain.from_iterable(groups))
+
+def match_both_ways_or_not(do_match_both_ways: bool, f, p1, p2) -> list[MatchingLink]:
+    """
+    Use function f to match the features in both ways and return the merged result.
+    
+    :param f: matching function
+    :param p1: parameters for way 1
+    :param p2: parameters for way 2
+    """
+    matches_1: list[MatchingLink] = f(*p1)
+    if not do_match_both_ways:
+        return matches_1
+    matches_2: list[MatchingLink] = f(*p2)
+    # reverse the indices for the second matches
+    # we add the number of groups found in match 1 to modify the groups of match_2
+    number_of_groups = max(matches_1, key=lambda m: m.group).group
+    # TODO if we want to be consistent, we might have to switch accuracy and completeness too
+    res = matches_1 + list(map(lambda m:MatchingLink(m.comp,m.ref,m.group + number_of_groups + 1,m.measures), matches_2))
+    # merge groups
+    return merge_groups(res)
 
 app = typer.Typer(name="pymatch", help="Pymatch matches geographical features", add_completion=True)
 
@@ -63,10 +88,10 @@ def main(
         export_input: Annotated[bool, typer.Option("--export",help="If true, export the input layers in the output file.")] = True,
         do_match_both_ways: Annotated[bool, typer.Option("--both/--no-both","-b/-B", help="If true, match the features both ways (A=>B and B=>A) and merge the results.")] = True,
         min_surface_intersection:  Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 1.,
-        min_intersection_percentage: Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 0.1,
-        sure_intersection_percentage: Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 0.6,
+        min_intersection_percentage: Annotated[float, typer.Option(min=0, help="min surface intersection percentage between fetures to consider matching")] = 0.1,
+        sure_intersection_percentage: Annotated[float, typer.Option(min=0, help="surface intersection percentage between fetures to consider the match sure")] = 0.7,
         minimise_surface_distance: Annotated[bool, typer.Option(help="min surface intersection between fetures to consider matching")] = True,
-        max_surface_distance: Annotated[float, typer.Option(min=0, help="min surface distance between fetures to consider matching in the final evaluation (only used if minimise_surface_distance is true)")] = 0.5,
+        max_surface_distance: Annotated[float, typer.Option(min=0, help="max surface distance between fetures to consider matching in the final evaluation (only used if minimise_surface_distance is true)")] = 0.5,
         min_accuracy_completeness: Annotated[float, typer.Option(min=0, help="min accuracy and completeness between fetures to consider matching in the final evaluation (only used if minimise_surface_distance is false)")] = 0.8,
         use_optimal_groups: Annotated[bool, typer.Option(help="if true, searches for optimal groups")] = True,
         final_filtering: Annotated[bool, typer.Option(help="if true, filter the final links using max_surface_distance or min_accuracy_completeness depending on minimise_surface_distance")] = False
@@ -89,62 +114,36 @@ def main(
         # "ajoutPetitesSurfaces": True,
         # "seuilPourcentageTaillePetitesSurfaces": 0.1
     }
-    def match_both_ways_or_not(f, p1, p2):
-        """
-        Use function f to match the features in both ways and return the merged result.
-        
-        :param f: matching function
-        :param p1: parameters for way 1
-        :param p2: parameters for way 2
-        """
-        matches_1 = f(*p1)
-        if not do_match_both_ways:
-            return matches_1
-        matches_2 = f(*p2)
-        # reverse the indices for the second matches
-        return matches_1 + list(map(lambda m:[m[1],m[0],m[2]],matches_2))
     def do_match():
         if algorithm == MatchingAlgorithm.gmoa:
-            return match_both_ways_or_not(surface_match, (gpd1, gpd2, param), (gpd2, gpd1, param))
+            # TODO not sure its actually necessary/useful
+            return match_both_ways_or_not(do_match_both_ways, surface_match, (gpd1, gpd2, param), (gpd2, gpd1, param))
         elif algorithm == MatchingAlgorithm.multi_criteria:
-            return match_both_ways_or_not(MCA, (gpd1, gpd2), (gpd2, gpd1))
+            return match_both_ways_or_not(do_match_both_ways, MCA2, (gpd1, gpd2), (gpd2, gpd1))
         elif algorithm == MatchingAlgorithm.multi:
-            def multi_match(ref, comp):
-                popRef4GMA, popRef4MCA = separate(ref, comp)
-                matches    = MCA(popRef4MCA, comp)
-                # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
-                # to do that, we use the name of the index (with .name) and get the index with get_loc
-                matches = list(map(lambda m: [ref.index.get_loc(popRef4MCA.iloc[m[0]].name), m[1], m[2]], matches))
-                matches_GMA = surface_match(popRef4GMA, comp, param)
-                matches_GMA = list(map(lambda m: [ref.index.get_loc(popRef4GMA.iloc[m[0]].name), m[1], m[2]], matches_GMA))
-                matches.extend(matches_GMA)
-                return matches
-            return match_both_ways_or_not(multi_match, (gpd1, gpd2), (gpd2, gpd1))
-        elif algorithm == MatchingAlgorithm.multi_criteria2:
-            return match_both_ways_or_not(MCA2, (gpd1, gpd2), (gpd2, gpd1))
-        elif algorithm == MatchingAlgorithm.multi2:
             def multi_match2(ref, comp):
                 ref_gma, ref_mca = separate(ref, comp)
-                matches    = MCA2(ref_mca, comp)
+                matches = MCA2(ref_mca, comp)
                 # this is sort of an ugly trick: we have to convert from the index (m[0]) of the separated dataframe (popRef4MCA) to the index from the global dataframe (gpd1)
                 # to do that, we use the name of the index (with .name) and get the index with get_loc
-                matches = list(map(lambda m: [ref.index.get_loc(ref_mca.iloc[m[0]].name), m[1], m[2]], matches))
+                matches = list(map(lambda m: MatchingLink(ref.index.get_loc(ref_mca.iloc[m.ref].name), m.comp, m.group, m.measures), matches))
                 matches_GMA = surface_match(ref_gma, comp, param)
-                matches_GMA = list(map(lambda m: [ref.index.get_loc(ref_gma.iloc[m[0]].name), m[1], m[2]], matches_GMA))
+                matches_GMA = list(map(lambda m: MatchingLink(ref.index.get_loc(ref_gma.iloc[m.ref].name), m.comp, m.group, m.measures), matches_GMA))
                 matches.extend(matches_GMA)
                 return matches
-            return match_both_ways_or_not(multi_match2, (gpd1, gpd2), (gpd2, gpd1))
+            return match_both_ways_or_not(do_match_both_ways, multi_match2, (gpd1, gpd2), (gpd2, gpd1))
         elif algorithm == MatchingAlgorithm.ot:
             # TODO: consider a symmetric match? Not sure if the OT transport we use is perfectly symmetric.
             return OT_matching(gpd1, gpd2)
         return None
-    # use unpacking to tranform a list((a,b,c)) into a list(a), list(b), list(c)
     res_match = do_match()
     if res_match is None:
         print("Unknown algorithm")
         return
-    id1, id2, prob = zip(*res_match)
-    df = pd.DataFrame({'ID1': id1,'ID2': id2,'prob': prob})
+    # use unpacking to tranform a list((a,b,c)) into a list(a), list(b), list(c)
+    id1, id2, group, measures = zip(*map(lambda m: m.as_tuple(), res_match))
+    df = pd.DataFrame({'ID1': id1,'ID2': id2,'group': group, 'measures': measures})
+    # we have to recompute the groups, don't we?
     # remove duplicates (ignoring prob just in case)
     df = df.drop_duplicates(subset=['ID1', 'ID2'])
     def createLinkGeometry(match):

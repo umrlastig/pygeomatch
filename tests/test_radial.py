@@ -78,7 +78,7 @@ def test_correlate_square_house(square,house):
     assert corr == [1.0, 0.2518248175182483, -0.6423357664233579, -0.6423357664233579, 0.19708029197080304, 0.8175182481751823, 0.19708029197080312, -0.6423357664233579, -0.6423357664233579, 0.1970802919708031, 0.8175182481751823, 0.1970802919708031, -0.6423357664233579, -0.6423357664233579, 0.1970802919708031, 0.8175182481751823, 0.1970802919708031, -0.6423357664233579, -0.6423357664233579, 0.2518248175182483]
 
 def test_radial_distance_square_house(square,house):
-    dist = radial.radial_distance(square, house, fs=2, nb=20)
+    dist = radial.radial_distance(square, house, fs=2, nb=20, fft=False)
     assert dist == pytest.approx(0.36680223849154703)# tested with R version: 0.3767798
     dist = radial.radial_distance(square, house, fs=2, nb=20, fft=True)
     assert dist == pytest.approx(0.36680223849154703)# tested with R version: 0.3767798

@@ -7,10 +7,12 @@ import numpy as np
 import ot
 import ot.partial
 
+from pygeomatch.util import MatchingLink
+
 INV_POINT_DENSITY = 100 # inverse of point density, i.e. number of points per squared meter
 
 
-def OT_matching(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame, *params):
+def OT_matching(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame, *params) -> list[MatchingLink]:
     """
     Perform polygon matching based on (partial) optimal transport
 
@@ -97,9 +99,9 @@ def OT_matching(popRef: gpd.GeoDataFrame, popComp: gpd.GeoDataFrame, *params):
         # - target polygons with barely any matches are likely to be new ones
 
     # TODO: refactor this and the for loop above in a single loop
-    matchings = []
+    matchings: list[MatchingLink] = []
     for source_idx, targets in pairings.items():
         for target_idx, pairing_weight in targets:
-            matchings.append((source_idx, target_idx, pairing_weight))
+            matchings.append(MatchingLink(source_idx, target_idx, len(matchings), {"pairing_weight": pairing_weight}))
     
     return matchings

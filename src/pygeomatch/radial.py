@@ -152,7 +152,7 @@ def radial_distance_fft(signature1: list[float], signature2: list[float])-> list
     rms = np.sqrt(np.clip(rms_sq, a_min=0.0, a_max=None))
     return rms.tolist()
 
-def radial_distance(p1: Polygon, p2: Polygon, fs: int = 2, nb: int = 100, fft: bool = False) -> float:
+def radial_distance(p1: Polygon, p2: Polygon, fs: int = 2, nb: int = 100, fft: bool = True) -> float:
     """
     The radial distance between 2 polygons.
     If `fft=True` the fast FFT-based RMS distance is used;
@@ -166,7 +166,7 @@ def radial_distance(p1: Polygon, p2: Polygon, fs: int = 2, nb: int = 100, fft: b
     :type fs: int
     :param nb: nb of points used for the computation
     :type nb: int
-    :param fft: if True, use the fast FFT-based computation (default to False)
+    :param fft: if True, use the fast FFT-based computation (default to True)
     :type fft: bool
     :return: radial distance between the polygons (>=0)
     :rtype: float

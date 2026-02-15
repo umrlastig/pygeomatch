@@ -235,8 +235,8 @@ class TestMultiCriteria2:
             return m_c2.MCMatch(0.3,0.0,0.7)
         res = m_c2.MCA2(gpd1,gpd2, [criteria1,criteria2])
         assert len(res) == 1 # only 1 match
-        assert res[0][1] == 0 # the match is 0-0
-        assert res[0][2] == pytest.approx(0.5, rel=5e-2) # pignistic probability is 0.5
+        assert res[0].comp == 0 # the match is 0-0
+        assert res[0].measures["pignistic_probability"] == pytest.approx(0.5, rel=5e-2) # pignistic probability is 0.5
 
     def test_MCA2_not_matched(self, polygon1, polygon2):
         gpd1 = gpd.GeoDataFrame({"id": [0]}, geometry=[polygon1])
@@ -257,9 +257,9 @@ class TestMultiCriteria2:
 
     def test_radial_distance_belief_function(self):
         assert compare(m_c2.radial_distance_belief_function(0.0), m_c2.MCMatch(0.5,0.0,0.5))
-        assert compare(m_c2.radial_distance_belief_function(0.1), m_c2.MCMatch(0.304,0.036,0.66))
-        assert compare(m_c2.radial_distance_belief_function(0.25), m_c2.MCMatch(0.01,0.09,0.9))
-        assert compare(m_c2.radial_distance_belief_function(0.5), m_c2.MCMatch(0.01,0.09,0.9))
+        assert compare(m_c2.radial_distance_belief_function(0.1), m_c2.MCMatch(0.43,0.01285714,0.557142857))
+        assert compare(m_c2.radial_distance_belief_function(0.25), m_c2.MCMatch(0.325,0.032142857,0.642857142857))
+        assert compare(m_c2.radial_distance_belief_function(0.5), m_c2.MCMatch(0.15,0.0642857142857,0.7857142857))
         assert compare(m_c2.radial_distance_belief_function(1.0), m_c2.MCMatch(0.01,0.09,0.9))
 
     def test_radial_criteria(self, polygon1, polygon2, polygon3, polygon4):
@@ -269,13 +269,13 @@ class TestMultiCriteria2:
         d = {"geometry":geometry.mapping(polygon4)}
         criteria = m_c2.radial_criteria(a, b)
         print("radial_criteria",criteria)
-        assert criteria.matched == pytest.approx(0.12837540740022824)
+        assert criteria.matched == pytest.approx(0.3672769312143672)
         criteria = m_c2.radial_criteria(a, c)
         print("radial_criteria",criteria)
         assert criteria.matched == pytest.approx(0.5)
         criteria = m_c2.radial_criteria(a, d)
         print("radial_criteria",criteria)
-        assert criteria.matched == pytest.approx(0.01)
+        assert criteria.matched == pytest.approx(0.317848997875136)
         criteria = m_c2.radial_criteria(a, a)
         print("radial_criteria",criteria)
         assert criteria.matched == pytest.approx(0.5)

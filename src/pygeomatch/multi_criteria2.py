@@ -6,7 +6,7 @@ from typing import Iterable, Union
 from functools import partial, reduce
 from operator import mul, itemgetter
 from shapely.geometry import shape
-from pygeomatch.util import surface_distance
+from pygeomatch.util import surface_distance, MatchingLink
 from pygeomatch.radial import radial_distance
 class MCMatch:
     def __init__(self, matched, not_matched, theta):
@@ -129,7 +129,7 @@ def pignistic_probability(potentialSet: dict[bitarray, float], threshold: float 
             add(result, util.count_and(f1,f2), f2.count(1), v2, f2)
     return result
 
-def process_match(ref_index: int, ref_feature: dict, comp_features: gpd.GeoDataFrame, criteria: list[Callable[[dict,dict],MCMatch]]) -> Union[tuple,None]:
+def process_match(ref_index: int, ref_feature: dict, comp_features: gpd.GeoDataFrame, criteria: list[Callable[[dict,dict],MCMatch]]) -> Union[tuple[int, int, float],None]:
     """
     Docstring for process_match
     
@@ -173,7 +173,7 @@ def process_match(ref_index: int, ref_feature: dict, comp_features: gpd.GeoDataF
         return None
     index = max_pignistic.find(1)
     # TODO output diff max1 - max2
-    return (ref_index, comp_features.iloc[index].name, max_pignistic_probability)
+    return (ref_index, comp_features.iloc[index].name, max_pignistic_probability) # type: ignore
 
 def surface_distance_belief_function(distance: float, T1: float = 0.5, T2: float = 0.6, E: float = 0.01, S:float = 0.6) -> MCMatch:
     """
@@ -210,7 +210,7 @@ def geom_criteria(a: dict, b: dict) -> MCMatch:
     distance = surface_distance(shape(a["geometry"]), shape(b["geometry"]))
     return surface_distance_belief_function(distance)
 
-def radial_distance_belief_function(distance: float, T1:float = 0.25, E:float = 0.01, S:float = 0.9) -> MCMatch:
+def radial_distance_belief_function(distance: float, T1:float = 0.7, E:float = 0.01, S:float = 0.9) -> MCMatch:
     """
     Belief function for the radial distance.
     See Ibrahim's thesis.
@@ -242,7 +242,7 @@ def radial_criteria(a: dict, b: dict) -> MCMatch:
     distance = radial_distance(shape(a["geometry"]), shape(b["geometry"])) # type: ignore
     return radial_distance_belief_function(distance)
 
-def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteria, radial_criteria])->list:
+def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteria, radial_criteria])->list[MatchingLink]:
     """
     Process Multi Criteria Matching.
     
@@ -253,4 +253,4 @@ def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteri
     # get the ref features and their corresponding candidates (if they have any)
     candidate_dictionary = select_candidates(ref, comp)
     results = [process_match(k, next(ref.iloc[[k]].iterfeatures()), comp.iloc[v], criteria) for k,v in candidate_dictionary.items()] # type: ignore
-    return [(result[0], comp.index.get_loc(result[1]), result[2]) for result in results if result is not None]
+    return [MatchingLink(result[0], comp.index.get_loc(result[1]), idx, {"pignistic_probability":result[2]}) for idx, result in enumerate(results) if result is not None] # type: ignore
