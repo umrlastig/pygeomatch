@@ -177,9 +177,9 @@ def search_optimal_groups(pre_match_links: list[GMALink], ref , comp , param) ->
         removable = list(removable)
         not_removable = list(not_removable)
         # print("not removable",len(not_removable))
-        if len(not_removable) == len(group) : # si on ne peut rien enlever on s'arrête la 
-            groups_to_keep.append(group)
-            continue
+        # if len(not_removable) == len(group) : # si on ne peut rien enlever on s'arrête la 
+        #     groups_to_keep.append(group)
+        #     continue
         #on cherche à enlever toutes les combinaisons possibles d'arcs virables
         # generate combinations (with a length of at most group size - 1)
         candidate_groups: list[list[GMALink]] = []
@@ -198,17 +198,18 @@ def search_optimal_groups(pre_match_links: list[GMALink], ref , comp , param) ->
         else:
             best = evals.index(max(evals))
         groups_to_keep.append(candidate_groups[best])
-    L = []
-    for k in range(len(groups_to_keep)):
-        # print("groups_to_keep",k,groups_to_keep[k])
-        if len(groups_to_keep[k]) == 2 : 
-            L.append(groups_to_keep[k][0])
-            L.append(groups_to_keep[k][1])
-        elif len(groups_to_keep[k]) == 0 : 
-            continue
-        else : 
-            L.append(groups_to_keep[k][0])
-    return L
+    # L = []
+    # for k in range(len(groups_to_keep)):
+    #     # print("groups_to_keep",k,groups_to_keep[k])
+    #     if len(groups_to_keep[k]) == 2 : 
+    #         L.append(groups_to_keep[k][0])
+    #         L.append(groups_to_keep[k][1])
+    #     elif len(groups_to_keep[k]) == 0 : 
+    #         continue
+    #     else : 
+    #         L.append(groups_to_keep[k][0])
+    # return L
+    return list(itertools.chain.from_iterable(groups_to_keep))
 
 def get_geom(index, dataframe):
     """
@@ -226,12 +227,8 @@ def list_union(list: list[int], gdf: geopandas.GeoDataFrame):
     :param list: a list of indices
     :param dataframe: a geodataframe
     """
-    try:
-        geom_list = [get_geom(list[k],gdf).buffer(0) for k in range(0, len(list))]
-        return shapely.union_all(geom_list)
-    except shapely.errors.GEOSException:
-        print("union list error with\n",list)
-        return None
+    geom_list = [get_geom(list[k],gdf).buffer(0) for k in range(0, len(list))]
+    return shapely.union_all(geom_list)
 
 # Il me semble qu'on ajoute la zone petite à la zone plus grande pour en 
 # faire une nouvelle entité 
@@ -269,7 +266,7 @@ def filter_links(grouped_links: list[GMALink], param, ref, comp) -> list[GMALink
             # distSurf = grouped_links[i][2]
             # distSurf = surface_distance(get_geom(grouped_link.ref,ref), get_geom(grouped_link.comp,comp))
             # print("distSurf",grouped_link.surface_distance)
-            if surface_distance <= param["max_surface_distance"]:
+            if grouped_link.surface_distance <= param["max_surface_distance"]:
                 # link.append(grouped_link.ref)
                 # link.append(grouped_link.comp)
                 # link.append(distSurf)
