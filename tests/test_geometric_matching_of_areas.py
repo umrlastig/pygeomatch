@@ -46,6 +46,10 @@ class TestGMA:
         return gpd.GeoDataFrame({"id": [0, 1, 2]}, geometry=[polygonA, polygonB, polygonC])
 
     @pytest.fixture(scope="class")
+    def gpdA3(self, polygonA, polygonC):
+        return gpd.GeoDataFrame({"id": [0, 1]}, geometry=[polygonA, polygonC])
+
+    @pytest.fixture(scope="class")
     def gpdB1(self, polygon1, polygon2):
         return gpd.GeoDataFrame({"id": [0, 1]}, geometry=[polygon1, polygon2])
 
@@ -56,6 +60,10 @@ class TestGMA:
     @pytest.fixture(scope="class")
     def gpdB3(self, polygon4, polygon5):
         return gpd.GeoDataFrame({"id": [0, 1]}, geometry=[polygon4, polygon5])
+
+    @pytest.fixture(scope="class")
+    def gpdB4(self, polygon3, polygon4):
+        return gpd.GeoDataFrame({"id": [0, 1]}, geometry=[polygon3, polygon4])
 
     def test_accuracy(self, polygonA, polygon1, polygon4, polygon5):
         a11 = util.get_accuracy(polygonA, polygonA)
@@ -134,7 +142,7 @@ class TestGMA:
         assert d.accuracy + d.completeness == pytest.approx(1.9)
         print(d)
 
-    def test_search_optimal_groups(self, gpdA1, gpdB1, gpdA2, gpdB2, gpdB3):
+    def test_search_optimal_groups(self, gpdA1, gpdA2, gpdA3, gpdB1, gpdB2, gpdB3, gpdB4):
         print("A1-B1 minimise_surface_distance=True")
         params = {"minimise_surface_distance": True, "min_surface_intersection": 0.1, "min_intersection_percentage": 0.1, "sure_intersection_percentage": 0.9}
         links = gmoa.pre_match(gpdA1, gpdB1, params)
@@ -165,11 +173,17 @@ class TestGMA:
         assert len(links) == 3
         groups = gmoa.search_optimal_groups(links, gpdA1, gpdB3, params)
         print("search_optimal_groups",len(groups),groups)
-        print("search_optimal_groups",len(groups),groups)
         assert len(groups) == 1
         complex_link = groups[0]
         if isinstance(complex_link,gmoa.ComplexGMALink):
             assert len(complex_link.simple_links) == 2
+        print("A3-B4 minimise_surface_distance=False")
+        links = gmoa.pre_match(gpdA3, gpdB4, params)
+        print(links)
+        assert len(links) == 2
+        groups = gmoa.search_optimal_groups(links, gpdA3, gpdB4, params)
+        print("search_optimal_groups",len(groups),groups)
+        assert len(groups) == 2
 
     def test_filter_links(self):
         link1 = gmoa.SimpleGMALink(0,0,0.0,0.0,1.0,0.0,0.0)
@@ -188,6 +202,43 @@ class TestGMA:
         }
         links = gmoa.filter_links([link1, link2, link3, link4], params)
         assert len(links) == 1
+    
+    def test_export_link(self):
+        links = gmoa.export_link(0, gmoa.SimpleGMALink(1, 2, 3., 4., 5., 6., 7.))
+        assert len(links) == 1
+        ref, comp, group, measures = links[0].as_tuple()
+        assert group == 0
+        assert ref == 1
+        assert comp == 2
+        assert measures["intersection_area"] == 3.
+        assert measures["intersection_ratio"] == 4.
+        assert measures["surface_distance"] == 5.
+        assert measures["accuracy"] == 6.
+        assert measures["completeness"] == 7.
+        simple_links = [gmoa.SimpleGMALink(1, 2, 3., 4., 5., 6., 7.), gmoa.SimpleGMALink(8, 9, 10., 11., 12., 13., 14.)]
+        links = gmoa.export_link(42, gmoa.ComplexGMALink(simple_links, 0., 0., 0., 0., 0.))
+        assert len(links) == 2
+        ref, comp, group, measures = links[0].as_tuple()
+        assert group == 42
+        assert ref == 1
+        assert comp == 2
+        assert measures["intersection_area"] == 3.
+        assert measures["intersection_ratio"] == 4.
+        assert measures["surface_distance"] == 5.
+        assert measures["accuracy"] == 6.
+        assert measures["completeness"] == 7.
+        ref, comp, group, measures = links[1].as_tuple()
+        assert group == 42
+        assert ref == 8
+        assert comp == 9
+        assert measures["intersection_area"] == 10.
+        assert measures["intersection_ratio"] == 11.
+        assert measures["surface_distance"] == 12.
+        assert measures["accuracy"] == 13.
+        assert measures["completeness"] == 14.
+        links = gmoa.export_link(42, gmoa.GMALink(0., 0., 0., 0., 0.))
+        assert len(links) == 0
+
     def test_surface_match(self, gpdA1, gpdB1, gpdA2, gpdB2, gpdB3):
         params = {
             "minimise_surface_distance": True, 

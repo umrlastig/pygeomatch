@@ -36,6 +36,7 @@ def export_measures(link: GMALink) -> dict[str, float]:
         "accuracy": link.accuracy,
         "completeness": link.completeness,
     }
+
 def export_link(group:int, link: GMALink) -> list[MatchingLink]:
     if isinstance(link, SimpleGMALink):
         return [MatchingLink(link.ref, link.comp, group, export_measures(link))]
@@ -102,7 +103,7 @@ def links_grouped_by_component(links: list[SimpleGMALink]) -> list[list[SimpleGM
     Returns a list of lists, where each inner list contains the Link
     objects that belong to the same connected component.
     """
-    # ---- Build an undirected bipartite graph -----------------
+    # ---- Build an undirected (bipartite) graph -----------------
     G = nx.Graph()
     # Add an edge for every Link (NetworkX adds the nodes automatically)
     G.add_edges_from((("ref", l.ref), ("comp", l.comp)) for l in links)
