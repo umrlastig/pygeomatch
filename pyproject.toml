@@ -27,6 +27,7 @@ dependencies = [
     "more-itertools>=10.8.0",
     "networkx>=3.2.1",
     "pot>=0.9.6.post1",
+    "tqdm>=4.67.3",
     "typer>=0.21.1",
 ]
 

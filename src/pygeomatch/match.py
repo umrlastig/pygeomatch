@@ -43,8 +43,8 @@ def separate(popRef , popComp) -> tuple[gpd.GeoDataFrame,gpd.GeoDataFrame]:
             ref_mca.append(ref_index)
         else:
             def condition(comp):
-                return surface_distance(ref_geom, comp[1]) < 0.7
-            if any(condition(c) for c in comp_candidates):
+                return surface_distance(ref_geom, comp["geometry"]) < 0.7
+            if any(condition(popComp.iloc[c]) for c in comp_candidates):
                 ref_mca.append(ref_index)
             else:
                 ref_gma.append(ref_index)

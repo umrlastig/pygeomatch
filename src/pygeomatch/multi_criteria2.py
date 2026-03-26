@@ -5,9 +5,11 @@ from bitarray import frozenbitarray, util, bitarray
 from typing import Iterable, Union
 from functools import partial, reduce
 from operator import mul, itemgetter
-from shapely.geometry import shape
+from shapely import MultiPolygon
+from shapely.geometry import Polygon, shape
 from pygeomatch.util import surface_distance, MatchingLink
 from pygeomatch.radial import radial_distance
+from tqdm import tqdm
 class MCMatch:
     def __init__(self, matched, not_matched, theta):
         self.matched = matched
@@ -129,7 +131,7 @@ def pignistic_probability(potentialSet: dict[bitarray, float], threshold: float 
             add(result, util.count_and(f1,f2), f2.count(1), v2, f2)
     return result
 
-def process_match(ref_index: int, ref_feature: dict, comp_features: gpd.GeoDataFrame, criteria: list[Callable[[dict,dict],MCMatch]]) -> Union[tuple[int, int, float],None]:
+def process_match(ref_index: int, ref_feature: dict, comp_features: gpd.GeoDataFrame, criteria: list[Callable[[dict,dict],MCMatch]]) -> Union[tuple[int, int, dict],None]:
     """
     Docstring for process_match
     
@@ -144,6 +146,7 @@ def process_match(ref_index: int, ref_feature: dict, comp_features: gpd.GeoDataF
     :return: Description
     :rtype: tuple[Any, ...] | None
     """
+    # print(ref_index, "with", len(comp_features))
     candidates = len(comp_features) + 1 # +1 since we'll add the 'not matched' candidate
     theta = frozenbitarray(util.ones(candidates)) #ignorance
     #phi = frozenbitarray(util.zeros(candidates)) # conflict
@@ -173,7 +176,25 @@ def process_match(ref_index: int, ref_feature: dict, comp_features: gpd.GeoDataF
         return None
     index = max_pignistic.find(1)
     # TODO output diff max1 - max2
-    return (ref_index, comp_features.iloc[index].name, max_pignistic_probability) # type: ignore
+    # sort the pignistic values
+    if len(pignistic) > 1:
+        sorted_pignistic = sorted(pignistic.items(), key=itemgetter(1), reverse=True)
+        # get the second best
+        _, max_pignistic_probability_2 = sorted_pignistic[1]
+        pignistic_probability_difference = max_pignistic_probability - max_pignistic_probability_2
+    else:
+        pignistic_probability_difference = 0.0
+    # print(len(comp_features), index, comp_features.iloc[index]["geometry"])
+    ref_geom = shape(ref_feature["geometry"])
+    comp_geom = comp_features.iloc[index]["geometry"]
+    return (ref_index, comp_features.iloc[index].name,
+        {
+            "pignistic_probability":max_pignistic_probability,
+            "pignistic_probability_difference":pignistic_probability_difference,
+            "surface_distance": surface_distance(ref_geom, comp_geom),
+            "radial_distance": radial_distance(get_as_polygon(ref_geom), get_as_polygon(comp_geom))
+        }
+    ) # type: ignore
 
 def surface_distance_belief_function(distance: float, T1: float = 0.5, T2: float = 0.6, E: float = 0.01, S:float = 0.6) -> MCMatch:
     """
@@ -225,6 +246,11 @@ def radial_distance_belief_function(distance: float, T1:float = 0.7, E:float = 0
     _app = K * distance / T1 if distance < T1 else K
     return MCMatch(app ,_app, 1 - app - _app)
 
+def get_as_polygon(geom) -> Polygon:
+    if isinstance(geom, Polygon):
+        return geom
+    # if isinstance(geom, MultiPolygon):
+    return geom.geoms[0]
 def radial_criteria(a: dict, b: dict) -> MCMatch:
     """
     A geometric criteria using the radial distance.
@@ -239,7 +265,9 @@ def radial_criteria(a: dict, b: dict) -> MCMatch:
     :return: values for matched, not matched and ignorance
     :rtype: MCMatch
     """
-    distance = radial_distance(shape(a["geometry"]), shape(b["geometry"])) # type: ignore
+    geom_a = shape(a["geometry"])
+    geom_b = shape(b["geometry"])
+    distance = radial_distance(get_as_polygon(geom_a), get_as_polygon(geom_b)) # type: ignore
     return radial_distance_belief_function(distance)
 
 def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteria, radial_criteria])->list[MatchingLink]:
@@ -252,5 +280,5 @@ def MCA2(ref: gpd.GeoDataFrame, comp: gpd.GeoDataFrame, criteria = [geom_criteri
     """
     # get the ref features and their corresponding candidates (if they have any)
     candidate_dictionary = select_candidates(ref, comp)
-    results = [process_match(k, next(ref.iloc[[k]].iterfeatures()), comp.iloc[v], criteria) for k,v in candidate_dictionary.items()] # type: ignore
-    return [MatchingLink(result[0], comp.index.get_loc(result[1]), idx, {"pignistic_probability":result[2]}) for idx, result in enumerate(results) if result is not None] # type: ignore
+    results = [process_match(k, next(ref.iloc[[k]].iterfeatures()), comp.iloc[v], criteria) for k,v in tqdm(candidate_dictionary.items())] # type: ignore
+    return [MatchingLink(result[0], comp.index.get_loc(result[1]), idx, result[2]) for idx, result in enumerate(results) if result is not None] # type: ignore
