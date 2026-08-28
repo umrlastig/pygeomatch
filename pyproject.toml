@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "pygeomatch"
-version = "0.0.2"
+version = "0.0.3"
 authors = [
   { name="Paul Guardiola", email="Paul.Guardiola@ign.fr" },
   { name="Juste Raimbault", email="Juste.Raimbault@ign.fr" },
