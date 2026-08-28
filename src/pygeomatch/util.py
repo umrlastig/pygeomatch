@@ -2,6 +2,14 @@ import shapely
 import networkx as nx
 from itertools import groupby
 
+from pygeomatch.radial import radial_distance
+
+def get_as_polygon(geom) -> shapely.Polygon:
+    if isinstance(geom, shapely.Polygon):
+        return geom
+    # if isinstance(geom, MultiPolygon):
+    return geom.geoms[0]
+
 def surface_distance(geomA, geomB) -> float:
     """
     Surface distance(A,B) = 1 - inter(A,B).area/union(A,B).area
@@ -52,7 +60,9 @@ def measures(geomA , geomB) -> list[float]:
     surf_distance = 1 - intersectionArea / unionArea
     accuracy = intersectionArea / geomA_area
     completeness = intersectionArea / geomB_area
-    return [intersectionArea, intersection_ratio, surf_distance, accuracy, completeness]
+    # TODO move the functions to remove dependency
+    r_distance = radial_distance(get_as_polygon(geomA), get_as_polygon(geomB))
+    return [intersectionArea, intersection_ratio, surf_distance, accuracy, completeness, r_distance]
 
 class MatchingLink:
     def __init__(self, ref: int, comp: int, group: int, measures: dict[str, float]):

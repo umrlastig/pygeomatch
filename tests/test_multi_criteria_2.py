@@ -189,7 +189,7 @@ class TestMultiCriteria2:
         # assert False
     
     def test_process_match(self, polygon1):
-        ref = {}
+        ref = {"geometry": polygon1}
         comp = gpd.GeoDataFrame({"id": [0,1,2]}, geometry=[polygon1, polygon1, polygon1])
         print(comp.head())
         def criteria1(a: dict, b: dict) -> m_c2.MCMatch:
@@ -206,10 +206,10 @@ class TestMultiCriteria2:
             return m_c2.MCMatch(0.3,0.0,0.7)
         res = m_c2.process_match(0, ref, comp, [criteria1, criteria2])
         assert res is not None
-        _, maxPignistic, maxPignisticProbability = res
+        _, maxPignistic, measures = res
         assert maxPignistic == 0
-        assert maxPignisticProbability == pytest.approx(0.479017) # 0.5 in the manuscript
-        assert maxPignisticProbability == pytest.approx(0.5, rel=5e-2)
+        assert measures["pignistic_probability"] == pytest.approx(0.479017) # 0.5 in the manuscript
+        assert measures["pignistic_probability"] == pytest.approx(0.5, rel=5e-2)
 
     def test_select_candidates(self, polygon1, polygon2, polygon3):
         gpd1 = gpd.GeoDataFrame({"id": [0]}, geometry=[polygon1])

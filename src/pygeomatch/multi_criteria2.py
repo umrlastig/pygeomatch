@@ -7,7 +7,7 @@ from functools import partial, reduce
 from operator import mul, itemgetter
 from shapely import MultiPolygon
 from shapely.geometry import Polygon, shape
-from pygeomatch.util import surface_distance, MatchingLink
+from pygeomatch.util import get_as_polygon, surface_distance, MatchingLink
 from pygeomatch.radial import radial_distance
 from tqdm import tqdm
 class MCMatch:
@@ -246,11 +246,6 @@ def radial_distance_belief_function(distance: float, T1:float = 0.7, E:float = 0
     _app = K * distance / T1 if distance < T1 else K
     return MCMatch(app ,_app, 1 - app - _app)
 
-def get_as_polygon(geom) -> Polygon:
-    if isinstance(geom, Polygon):
-        return geom
-    # if isinstance(geom, MultiPolygon):
-    return geom.geoms[0]
 def radial_criteria(a: dict, b: dict) -> MCMatch:
     """
     A geometric criteria using the radial distance.

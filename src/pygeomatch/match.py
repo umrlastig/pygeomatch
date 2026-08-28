@@ -85,7 +85,7 @@ def main(
         file2: Annotated[Path, typer.Argument(help="File to use as comparison")],
         output_file: Annotated[Path, typer.Argument(help="File to save the results to")],
         algorithm: Annotated[MatchingAlgorithm, typer.Argument(help="The algorithm to use (GMA, MCA, Multi, MCA2, Multi2)")] = MatchingAlgorithm.multi_criteria,
-        export_input: Annotated[bool, typer.Option("--export",help="If true, export the input layers in the output file.")] = True,
+        export_input: Annotated[bool, typer.Option("--export/--no-export",help="If true, export the input layers in the output file.")] = True,
         do_match_both_ways: Annotated[bool, typer.Option("--both/--no-both","-b/-B", help="If true, match the features both ways (A=>B and B=>A) and merge the results.")] = True,
         min_surface_intersection:  Annotated[float, typer.Option(min=0, help="min surface intersection between fetures to consider matching")] = 1.,
         min_intersection_percentage: Annotated[float, typer.Option(min=0, help="min surface intersection percentage between fetures to consider matching")] = 0.1,

@@ -6,27 +6,28 @@ import networkx as nx
 import itertools
 
 class GMALink:
-    def __init__(self, intersection_area: float, intersection_ratio: float, surface_distance: float, accuracy: float, completeness: float):
+    def __init__(self, intersection_area: float, intersection_ratio: float, surface_distance: float, accuracy: float, completeness: float, radial_distance: float):
         self.intersection_area = intersection_area
         self.intersection_ratio = intersection_ratio
         self.surface_distance = surface_distance
         self.accuracy = accuracy
         self.completeness = completeness
+        self.radial_distance = radial_distance
 
 class SimpleGMALink(GMALink):
-    def __init__(self, ref: int, comp: int, intersection_area: float, intersection_ratio: float, surface_distance: float, accuracy: float, completeness: float):
-        super().__init__(intersection_area, intersection_ratio, surface_distance, accuracy, completeness)
+    def __init__(self, ref: int, comp: int, intersection_area: float, intersection_ratio: float, surface_distance: float, accuracy: float, completeness: float, radial_distance: float):
+        super().__init__(intersection_area, intersection_ratio, surface_distance, accuracy, completeness, radial_distance)
         self.ref = ref
         self.comp = comp
     def __repr__(self):
         return "SimpleGMALink(%s,%s,%s,%s,%s,%s,%s)" % (self.ref, self.comp, self.intersection_area, self.intersection_ratio, self.surface_distance, self.accuracy, self.completeness)
 
 class ComplexGMALink(GMALink):
-    def __init__(self, simple_links: list[SimpleGMALink], intersection_area: float, intersection_ratio: float, surface_distance: float, accuracy: float, completeness: float):
-        super().__init__(intersection_area, intersection_ratio, surface_distance, accuracy, completeness)
+    def __init__(self, simple_links: list[SimpleGMALink], intersection_area: float, intersection_ratio: float, surface_distance: float, accuracy: float, completeness: float, radial_distance: float):
+        super().__init__(intersection_area, intersection_ratio, surface_distance, accuracy, completeness, radial_distance)
         self.simple_links = simple_links
     def __repr__(self):
-        return "ComplexGMALink(%s,%s,%s,%s,%s,%s)" % (self.simple_links, self.intersection_area, self.intersection_ratio, self.surface_distance, self.accuracy, self.completeness)
+        return "ComplexGMALink(%s,%s,%s,%s,%s,%s,%s)" % (self.simple_links, self.intersection_area, self.intersection_ratio, self.surface_distance, self.accuracy, self.completeness, self.radial_distance)
 
 def export_measures(link: GMALink) -> dict[str, float]:
     return {
@@ -35,6 +36,7 @@ def export_measures(link: GMALink) -> dict[str, float]:
         "surface_distance": link.surface_distance,
         "accuracy": link.accuracy,
         "completeness": link.completeness,
+        "radial_distance": link.radial_distance,
     }
 
 def export_link(group:int, link: GMALink) -> list[MatchingLink]:
